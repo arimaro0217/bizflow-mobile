@@ -1,0 +1,221 @@
+import { useState } from 'react';
+import { Plus, Settings, Wallet, LayoutDashboard, LogOut, TrendingUp, PieChart } from 'lucide-react';
+import { AppLayout } from '../components/layout/AppLayout';
+import { motion } from 'framer-motion';
+import { useAuth } from '../features/auth';
+import { Calendar, TransactionList } from '../features/calendar';
+import { ClientSheet, ClientFormSheet } from '../features/clients';
+import { TransactionForm } from '../features/transactions';
+import { ToggleSwitch } from '../components/ui';
+import { useAppStore } from '../stores/appStore';
+import { useTransactions, useClients, type CreateTransactionInput, type CreateClientInput } from '../hooks';
+import Decimal from 'decimal.js';
+
+export default function Dashboard() {
+    const { user, signOut } = useAuth();
+    const {
+        viewMode,
+        toggleViewMode,
+        selectedDate
+    } = useAppStore();
+
+    const [isClientSheetOpen, setIsClientSheetOpen] = useState(false);
+    const [isClientFormOpen, setIsClientFormOpen] = useState(false);
+    const [isTransactionFormOpen, setIsTransactionFormOpen] = useState(false);
+
+    // Firestoreからリアルタイムでデータを取得
+    const { transactions, loading: transactionsLoading, addTransaction } = useTransactions(user?.uid);
+    const { clients, addClient } = useClients(user?.uid);
+
+    const handleCreateTransaction = async (data: any) => {
+        try {
+            const input: CreateTransactionInput = {
+                type: data.type,
+                amount: data.amount,
+                taxRate: data.taxRate || '0.1',
+                transactionDate: data.transactionDate,
+                settlementDate: data.settlementDate,
+                isSettled: data.isSettled || false,
+                clientId: data.clientId,
+                memo: data.memo,
+            };
+            await addTransaction(input);
+            console.log('取引を保存しました');
+        } catch (error) {
+            console.error('取引の保存に失敗:', error);
+        }
+    };
+
+    const handleCreateClient = async (data: any) => {
+        try {
+            const input: CreateClientInput = {
+                name: data.name,
+                closingDay: data.closingDay,
+                paymentMonthOffset: data.paymentMonthOffset,
+                paymentDay: data.paymentDay,
+            };
+            await addClient(input);
+            console.log('取引先を保存しました');
+        } catch (error) {
+            console.error('取引先の保存に失敗:', error);
+        }
+    };
+
+    // サマリー計算
+    const incomeTotal = transactions
+        .filter(t => t.type === 'income')
+        .reduce((sum, t) => sum.plus(t.amount), new Decimal(0));
+
+    const expenseTotal = transactions
+        .filter(t => t.type === 'expense')
+        .reduce((sum, t) => sum.plus(t.amount), new Decimal(0));
+
+    const sidebarContent = (
+        <div className="flex flex-col h-full">
+            <div className="flex items-center gap-3 px-2 mb-8">
+                <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-primary-700 rounded-xl flex items-center justify-center shadow-lg shadow-primary-500/20">
+                    <Wallet className="w-6 h-6 text-white" />
+                </div>
+                <span className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-400">
+                    BizFlow
+                </span>
+            </div>
+
+            <nav className="space-y-2 flex-1">
+                <button className="w-full flex items-center gap-3 px-4 py-3 bg-primary-500/10 text-primary-400 rounded-xl font-medium transition-colors">
+                    <LayoutDashboard className="w-5 h-5" />
+                    ダッシュボード
+                </button>
+                <button className="w-full flex items-center gap-3 px-4 py-3 text-gray-400 hover:bg-white/5 rounded-xl font-medium transition-colors">
+                    <PieChart className="w-5 h-5" />
+                    レポート
+                </button>
+                <button className="w-full flex items-center gap-3 px-4 py-3 text-gray-400 hover:bg-white/5 rounded-xl font-medium transition-colors">
+                    <Settings className="w-5 h-5" />
+                    設定
+                </button>
+            </nav>
+
+            <div className="pt-6 border-t border-white/5">
+                <button
+                    onClick={() => signOut()}
+                    className="w-full flex items-center gap-3 px-4 py-3 text-gray-400 hover:text-red-400 hover:bg-red-400/10 rounded-xl font-medium transition-colors"
+                >
+                    <LogOut className="w-5 h-5" />
+                    ログアウト
+                </button>
+            </div>
+        </div>
+    );
+
+    const headerContent = (
+        <div className="flex items-center justify-between h-16 px-4 md:px-0 w-full">
+            <h1 className="text-xl font-bold text-white md:hidden">BizFlow</h1>
+
+            <div className="hidden md:block">
+                <h2 className="text-lg font-semibold text-white">ダッシュボード</h2>
+                <p className="text-xs text-gray-400">資金繰りの状況を一目で確認できます</p>
+            </div>
+
+            <div className="flex items-center gap-4 ml-auto">
+                <ToggleSwitch
+                    checked={viewMode === 'cash'}
+                    onChange={toggleViewMode}
+                    leftLabel="発生"
+                    rightLabel="入金"
+                />
+                <button
+                    onClick={() => signOut()}
+                    className="md:hidden p-2 rounded-full hover:bg-surface-light transition-colors"
+                >
+                    <Settings className="w-6 h-6 text-gray-400" />
+                </button>
+            </div>
+        </div>
+    );
+
+    return (
+        <AppLayout sidebar={sidebarContent} header={headerContent}>
+            {/* メインコンテンツ */}
+            <div className="space-y-6 max-w-5xl mx-auto">
+                {/* カレンダー */}
+                <Calendar transactions={transactions.map(t => ({
+                    date: t.transactionDate!,
+                    type: t.type,
+                    amount: parseInt(t.amount, 10),
+                }))} />
+
+                {/* トランザクションリスト */}
+                <div className="md:grid md:grid-cols-2 md:gap-6">
+                    <div>
+                        <h2 className="text-gray-400 text-sm font-medium mb-4 px-1 flex items-center gap-2">
+                            <TrendingUp className="w-4 h-4" />
+                            {viewMode === 'accrual' ? '発生予定' : '入出金予定'}
+                            {transactionsLoading && (
+                                <span className="text-xs text-primary-400">読み込み中...</span>
+                            )}
+                        </h2>
+                        <TransactionList transactions={transactions} />
+                    </div>
+                    {/* PC表示用のサマリー */}
+                    <div className="hidden md:block p-6 bg-surface rounded-2xl border border-white/5">
+                        <h3 className="text-lg font-medium text-white mb-4">今月のサマリー</h3>
+                        <div className="space-y-4">
+                            <div className="p-4 bg-surface-light rounded-xl">
+                                <p className="text-sm text-gray-400">収入予測</p>
+                                <p className="text-2xl font-bold text-income">
+                                    ¥{incomeTotal.toNumber().toLocaleString()}
+                                </p>
+                            </div>
+                            <div className="p-4 bg-surface-light rounded-xl">
+                                <p className="text-sm text-gray-400">支出予測</p>
+                                <p className="text-2xl font-bold text-expense">
+                                    ¥{expenseTotal.toNumber().toLocaleString()}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* FAB (Floating Action Button) */}
+            <motion.button
+                whileTap={{ scale: 0.9 }}
+                onClick={() => setIsTransactionFormOpen(true)}
+                className="fixed bottom-6 right-6 md:bottom-10 md:right-10 w-14 h-14 bg-primary-500 hover:bg-primary-600 rounded-full shadow-lg shadow-primary-500/30 flex items-center justify-center text-white z-20 transition-colors"
+            >
+                <Plus className="w-8 h-8" />
+            </motion.button>
+
+            {/* Sheets */}
+            <TransactionForm
+                open={isTransactionFormOpen}
+                onOpenChange={setIsTransactionFormOpen}
+                onSubmit={handleCreateTransaction}
+                clients={clients}
+                onOpenClientSheet={() => setIsClientSheetOpen(true)}
+                initialDate={selectedDate}
+            />
+
+            <ClientSheet
+                open={isClientSheetOpen}
+                onOpenChange={setIsClientSheetOpen}
+                clients={clients}
+                onSelect={(client) => {
+                    console.log('Selected client:', client);
+                    setIsClientSheetOpen(false);
+                }}
+                onCreateNew={() => {
+                    setIsClientSheetOpen(false);
+                    setTimeout(() => setIsClientFormOpen(true), 200);
+                }}
+            />
+
+            <ClientFormSheet
+                open={isClientFormOpen}
+                onOpenChange={setIsClientFormOpen}
+                onSubmit={handleCreateClient}
+            />
+        </AppLayout>
+    );
+}

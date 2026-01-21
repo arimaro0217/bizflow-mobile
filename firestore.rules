@@ -1,0 +1,40 @@
+// ==============================================================================
+// Firestoreセキュリティルール
+// ==============================================================================
+// 【設計意図】
+// - 認証必須: ログインしていないユーザーはアクセス不可
+// - 自分のデータのみ: request.auth.uid がドキュメントパスのuidと一致する場合のみ許可
+// - サブコレクションも同様のルールで保護
+// ==============================================================================
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ユーザードキュメント
+    match /users/{userId} {
+      // 認証済み + 自分のデータのみ読み書き可能
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+      
+      // 取引サブコレクション
+      match /transactions/{transactionId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+      
+      // 取引先サブコレクション
+      match /clients/{clientId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+      
+      // カテゴリサブコレクション（将来用）
+      match /categories/{categoryId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+    }
+    
+    // デフォルト: 全てのアクセスを拒否
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
