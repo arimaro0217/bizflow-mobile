@@ -17,6 +17,7 @@ interface TransactionFormProps {
     clients?: Client[];
     onOpenClientSheet?: () => void;
     initialDate?: Date;
+    selectedClient?: Client | null;
 }
 
 export function TransactionForm({
@@ -25,12 +26,12 @@ export function TransactionForm({
     onSubmit,
     onOpenClientSheet,
     initialDate = new Date(),
+    selectedClient = null,
 }: TransactionFormProps) {
     const { openKeypad } = useAppStore();
     const [type, setType] = useState<'income' | 'expense'>('income');
     const [amount, setAmount] = useState('0');
     const [transactionDate] = useState(initialDate);
-    const [selectedClient, setSelectedClient] = useState<Client | null>(null);
     const [memo, setMemo] = useState('');
     const [taxRate] = useState('0.1');
 
@@ -67,7 +68,7 @@ export function TransactionForm({
         setType('income');
         setAmount('0');
         setMemo('');
-        setSelectedClient(null);
+        // selectedClient is controlled by parent
         onOpenChange(false);
     };
 

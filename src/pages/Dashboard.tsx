@@ -23,6 +23,7 @@ export default function Dashboard() {
     const [isClientSheetOpen, setIsClientSheetOpen] = useState(false);
     const [isClientFormOpen, setIsClientFormOpen] = useState(false);
     const [isTransactionFormOpen, setIsTransactionFormOpen] = useState(false);
+    const [transactionClient, setTransactionClient] = useState<any>(null);
 
     // Firestoreからリアルタイムでデータを取得
     const { transactions, loading: transactionsLoading, addTransaction } = useTransactions(user?.uid);
@@ -42,6 +43,7 @@ export default function Dashboard() {
             };
             await addTransaction(input);
             console.log('取引を保存しました');
+            setTransactionClient(null); // Reset client selection
         } catch (error) {
             console.error('取引の保存に失敗:', error);
         }
@@ -207,6 +209,7 @@ export default function Dashboard() {
                 clients={clients}
                 onOpenClientSheet={() => setIsClientSheetOpen(true)}
                 initialDate={selectedDate}
+                selectedClient={transactionClient}
             />
 
             <ClientSheet
@@ -214,7 +217,7 @@ export default function Dashboard() {
                 onOpenChange={setIsClientSheetOpen}
                 clients={clients}
                 onSelect={(client) => {
-                    console.log('Selected client:', client);
+                    setTransactionClient(client);
                     setIsClientSheetOpen(false);
                 }}
                 onCreateNew={() => {
