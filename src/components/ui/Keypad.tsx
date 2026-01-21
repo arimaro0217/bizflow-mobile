@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import Decimal from 'decimal.js';
 import { Delete, Check, X } from 'lucide-react';
@@ -115,96 +116,98 @@ export function Keypad({ onConfirm, onCancel, initialValue = '' }: KeypadProps) 
         ['C', '0', '00', '+'],
     ];
 
-    return (
+    if (!isKeypadOpen) return null;
+
+    return createPortal(
         <AnimatePresence>
-            {isKeypadOpen && (
-                <>
-                    {/* オーバーレイ */}
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="fixed inset-0 bg-black/50 z-[60]"
-                        onClick={handleCancel}
-                    />
+            {/* オーバーレイ */}
+            <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 bg-black/50 z-[60] touch-none"
+                onClick={handleCancel}
+                onTouchStart={(e) => e.stopPropagation()}
+            />
 
-                    {/* キーパッド */}
-                    <motion.div
-                        initial={{ y: '100%' }}
-                        animate={{ y: 0 }}
-                        exit={{ y: '100%' }}
-                        transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-                        className="fixed bottom-0 left-0 right-0 bg-surface-dark rounded-t-3xl z-[70] safe-area-bottom"
-                    >
-                        {/* ハンドル */}
-                        <div className="flex justify-center py-3">
-                            <div className="w-12 h-1.5 bg-gray-600 rounded-full" />
-                        </div>
+            {/* キーパッド */}
+            <motion.div
+                initial={{ y: '100%' }}
+                animate={{ y: 0 }}
+                exit={{ y: '100%' }}
+                transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+                className="fixed bottom-0 left-0 right-0 bg-surface-dark rounded-t-3xl z-[70] safe-area-bottom touch-none"
+                onTouchStart={(e) => e.stopPropagation()}
+                onClick={(e) => e.stopPropagation()}
+            >
+                {/* ハンドル */}
+                <div className="flex justify-center py-3">
+                    <div className="w-12 h-1.5 bg-gray-600 rounded-full" />
+                </div>
 
-                        {/* ディスプレイ */}
-                        <div className="px-6 pb-4">
-                            <div className="bg-surface rounded-2xl p-4">
-                                {/* 演算表示 */}
-                                {previousValue !== null && operator && (
-                                    <p className="text-gray-500 text-right text-sm mb-1">
-                                        {formatDisplay(previousValue)} {operator}
-                                    </p>
-                                )}
-                                {/* 現在値 */}
-                                <p className="text-white text-right text-4xl font-semibold tabular-nums">
-                                    ¥{formatDisplay(displayValue)}
-                                </p>
-                            </div>
-                        </div>
+                {/* ディスプレイ */}
+                <div className="px-6 pb-4">
+                    <div className="bg-surface rounded-2xl p-4">
+                        {/* 演算表示 */}
+                        {previousValue !== null && operator && (
+                            <p className="text-gray-500 text-right text-sm mb-1">
+                                {formatDisplay(previousValue)} {operator}
+                            </p>
+                        )}
+                        {/* 現在値 */}
+                        <p className="text-white text-right text-4xl font-semibold tabular-nums">
+                            ¥{formatDisplay(displayValue)}
+                        </p>
+                    </div>
+                </div>
 
-                        {/* キーエリア */}
-                        <div className="px-4 pb-4">
-                            <div className="grid grid-cols-4 gap-2">
-                                {keys.flat().map((key) => (
-                                    <KeypadButton
-                                        key={key}
-                                        value={key}
-                                        onPress={() => {
-                                            if (key === 'C') {
-                                                handleClear();
-                                            } else if (['+', '-', '×', '÷'].includes(key)) {
-                                                handleOperator(key as Operator);
-                                            } else {
-                                                handleNumberInput(key);
-                                            }
-                                        }}
-                                        isOperator={['+', '-', '×', '÷'].includes(key)}
-                                        isActive={operator === key && waitingForOperand}
-                                    />
-                                ))}
-                            </div>
+                {/* キーエリア */}
+                <div className="px-4 pb-4">
+                    <div className="grid grid-cols-4 gap-2">
+                        {keys.flat().map((key) => (
+                            <KeypadButton
+                                key={key}
+                                value={key}
+                                onPress={() => {
+                                    if (key === 'C') {
+                                        handleClear();
+                                    } else if (['+', '-', '×', '÷'].includes(key)) {
+                                        handleOperator(key as Operator);
+                                    } else {
+                                        handleNumberInput(key);
+                                    }
+                                }}
+                                isOperator={['+', '-', '×', '÷'].includes(key)}
+                                isActive={operator === key && waitingForOperand}
+                            />
+                        ))}
+                    </div>
 
-                            {/* 下部ボタン */}
-                            <div className="grid grid-cols-3 gap-2 mt-2">
-                                <button
-                                    onClick={handleCancel}
-                                    className="h-14 rounded-2xl bg-surface-light text-gray-400 flex items-center justify-center active:scale-95 transition-transform"
-                                >
-                                    <X className="w-6 h-6" />
-                                </button>
-                                <button
-                                    onClick={handleBackspace}
-                                    className="h-14 rounded-2xl bg-surface-light text-gray-400 flex items-center justify-center active:scale-95 transition-transform"
-                                >
-                                    <Delete className="w-6 h-6" />
-                                </button>
-                                <button
-                                    onClick={handleConfirm}
-                                    className="h-14 rounded-2xl bg-primary-600 text-white flex items-center justify-center active:scale-95 transition-transform"
-                                >
-                                    <Check className="w-6 h-6" />
-                                </button>
-                            </div>
-                        </div>
-                    </motion.div>
-                </>
-            )}
-        </AnimatePresence>
+                    {/* 下部ボタン */}
+                    <div className="grid grid-cols-3 gap-2 mt-2">
+                        <button
+                            onClick={handleCancel}
+                            className="h-14 rounded-2xl bg-surface-light text-gray-400 flex items-center justify-center active:scale-95 transition-transform"
+                        >
+                            <X className="w-6 h-6" />
+                        </button>
+                        <button
+                            onClick={handleBackspace}
+                            className="h-14 rounded-2xl bg-surface-light text-gray-400 flex items-center justify-center active:scale-95 transition-transform"
+                        >
+                            <Delete className="w-6 h-6" />
+                        </button>
+                        <button
+                            onClick={handleConfirm}
+                            className="h-14 rounded-2xl bg-primary-600 text-white flex items-center justify-center active:scale-95 transition-transform"
+                        >
+                            <Check className="w-6 h-6" />
+                        </button>
+                    </div>
+                </div>
+            </motion.div>
+        </AnimatePresence>,
+        document.body
     );
 }
 
