@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { isSameMonth } from 'date-fns';
 import { Plus, Settings, Wallet, LayoutDashboard, LogOut, TrendingUp, PieChart } from 'lucide-react';
 import { AppLayout } from '../components/layout/AppLayout';
 import { motion } from 'framer-motion';
@@ -63,11 +64,16 @@ export default function Dashboard() {
 
     // サマリー計算
     const incomeTotal = transactions
-        .filter(t => t.type === 'income')
+        .filter(t => t.type === 'income' && t.transactionDate && isSameMonth(t.transactionDate, selectedDate))
         .reduce((sum, t) => sum.plus(t.amount), new Decimal(0));
 
     const expenseTotal = transactions
-        .filter(t => t.type === 'expense')
+        .filter(t => t.type === 'expense' && t.transactionDate && isSameMonth(t.transactionDate, selectedDate))
+        .reduce((sum, t) => sum.plus(t.amount), new Decimal(0));
+
+    // 入金予測（決済日が今月の収入）
+    const cashInTotal = transactions
+        .filter(t => t.type === 'income' && t.settlementDate && isSameMonth(t.settlementDate, selectedDate))
         .reduce((sum, t) => sum.plus(t.amount), new Decimal(0));
 
     const sidebarContent = (
@@ -158,19 +164,25 @@ export default function Dashboard() {
                         <TransactionList transactions={transactions} />
                     </div>
                     {/* PC表示用のサマリー */}
-                    <div className="hidden md:block p-6 bg-surface rounded-2xl border border-white/5">
+                    <div className="hidden md:block p-6 bg-surface rounded-2xl border border-white/5 h-fit">
                         <h3 className="text-lg font-medium text-white mb-4">今月のサマリー</h3>
                         <div className="space-y-4">
-                            <div className="p-4 bg-surface-light rounded-xl">
-                                <p className="text-sm text-gray-400">収入予測</p>
+                            <div className="p-4 bg-surface-light rounded-xl border border-white/5">
+                                <p className="text-sm text-gray-400 mb-1">売上 (発生)</p>
                                 <p className="text-2xl font-bold text-income">
                                     ¥{incomeTotal.toNumber().toLocaleString()}
                                 </p>
                             </div>
-                            <div className="p-4 bg-surface-light rounded-xl">
-                                <p className="text-sm text-gray-400">支出予測</p>
+                            <div className="p-4 bg-surface-light rounded-xl border border-white/5">
+                                <p className="text-sm text-gray-400 mb-1">支出 (発生)</p>
                                 <p className="text-2xl font-bold text-expense">
                                     ¥{expenseTotal.toNumber().toLocaleString()}
+                                </p>
+                            </div>
+                            <div className="p-4 bg-primary-500/10 rounded-xl border border-primary-500/20">
+                                <p className="text-sm text-primary-400 mb-1">入金予測 (決済)</p>
+                                <p className="text-2xl font-bold text-white">
+                                    ¥{cashInTotal.toNumber().toLocaleString()}
                                 </p>
                             </div>
                         </div>
