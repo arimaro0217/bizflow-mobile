@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Drawer } from 'vaul';
 import { format } from 'date-fns';
 import { ja } from 'date-fns/locale';
@@ -18,6 +18,7 @@ interface TransactionFormProps {
     onOpenClientSheet?: () => void;
     initialDate?: Date;
     selectedClient?: Client | null;
+    initialTransaction?: Transaction | null;
 }
 
 export function TransactionForm({
@@ -27,13 +28,32 @@ export function TransactionForm({
     onOpenClientSheet,
     initialDate = new Date(),
     selectedClient = null,
+    initialTransaction = null,
 }: TransactionFormProps) {
     const { openKeypad, isKeypadOpen } = useAppStore();
     const [type, setType] = useState<'income' | 'expense'>('income');
     const [amount, setAmount] = useState('0');
-    const [transactionDate] = useState(initialDate);
+    const [transactionDate, setTransactionDate] = useState(initialDate);
     const [memo, setMemo] = useState('');
     const [taxRate] = useState('0.1');
+
+    // 編集モード時の初期値セット
+    useEffect(() => {
+        if (open) {
+            if (initialTransaction) {
+                setType(initialTransaction.type);
+                setAmount(initialTransaction.amount);
+                setTransactionDate(initialTransaction.transactionDate || new Date());
+                setMemo(initialTransaction.memo || '');
+            } else {
+                // 新規作成時はデフォルト値を使用
+                setType('income');
+                setAmount('0');
+                setTransactionDate(initialDate);
+                setMemo('');
+            }
+        }
+    }, [open, initialTransaction, initialDate]);
 
     const handleAmountConfirm = (value: string) => {
         setAmount(value);
@@ -44,6 +64,9 @@ export function TransactionForm({
 
         // 入金予定日を計算
         let settlementDate = transactionDate;
+
+        // 編集モードかつ決済日が既にある場合は維持するか、再計算するか？
+        // ここではシンプルに、クライアントが選択されていれば再計算、そうでなければ既存維持または発生日
         if (selectedClient) {
             settlementDate = calculateSettlementDate(
                 transactionDate,
@@ -51,6 +74,8 @@ export function TransactionForm({
                 selectedClient.paymentMonthOffset,
                 selectedClient.paymentDay
             );
+        } else if (initialTransaction?.settlementDate) {
+            settlementDate = initialTransaction.settlementDate;
         }
 
         onSubmit({
@@ -59,16 +84,18 @@ export function TransactionForm({
             taxRate,
             transactionDate,
             settlementDate,
-            isSettled: false,
+            isSettled: initialTransaction ? initialTransaction.isSettled : false,
             clientId: selectedClient?.id,
             memo: memo.trim() || undefined,
         });
 
-        // リセット
-        setType('income');
-        setAmount('0');
-        setMemo('');
-        // selectedClient is controlled by parent
+        // リセットは親コンポーネントの開閉制御に任せるが、念のため
+        if (!initialTransaction) {
+            setType('income');
+            setAmount('0');
+            setMemo('');
+        }
+
         onOpenChange(false);
     };
 
@@ -196,7 +223,7 @@ export function TransactionForm({
                                         size="lg"
                                         className="w-full"
                                     >
-                                        登録する
+                                        {initialTransaction ? '更新する' : '登録する'}
                                     </Button>
                                 </div>
                             </div>

@@ -24,12 +24,13 @@ export default function Dashboard() {
     const [isClientFormOpen, setIsClientFormOpen] = useState(false);
     const [isTransactionFormOpen, setIsTransactionFormOpen] = useState(false);
     const [transactionClient, setTransactionClient] = useState<any>(null);
+    const [editingTransaction, setEditingTransaction] = useState<any>(null);
 
     // Firestoreからリアルタイムでデータを取得
-    const { transactions, loading: transactionsLoading, addTransaction } = useTransactions(user?.uid);
+    const { transactions, loading: transactionsLoading, addTransaction, updateTransaction, deleteTransaction } = useTransactions(user?.uid);
     const { clients, addClient } = useClients(user?.uid);
 
-    const handleCreateTransaction = async (data: any) => {
+    const handleFormSubmit = async (data: any) => {
         try {
             const input: CreateTransactionInput = {
                 type: data.type,
@@ -42,11 +43,43 @@ export default function Dashboard() {
                 ...(data.clientId && { clientId: data.clientId }),
                 ...(data.memo && { memo: data.memo }),
             };
-            await addTransaction(input);
-            console.log('取引を保存しました');
+
+            if (editingTransaction) {
+                await updateTransaction(editingTransaction.id, input);
+                console.log('取引を更新しました');
+            } else {
+                await addTransaction(input);
+                console.log('取引を保存しました');
+            }
+
             setTransactionClient(null); // Reset client selection
+            setEditingTransaction(null); // Reset editing state
+            setIsTransactionFormOpen(false); // Close form explicitly
         } catch (error) {
             console.error('取引の保存に失敗:', error);
+        }
+    };
+
+    const handleEditTransaction = (transaction: any) => {
+        setEditingTransaction(transaction);
+        // クライアント情報を復元
+        if (transaction.clientId && clients.length > 0) {
+            const client = clients.find((c: any) => c.id === transaction.clientId);
+            setTransactionClient(client || null);
+        } else {
+            setTransactionClient(null);
+        }
+        setIsTransactionFormOpen(true);
+    };
+
+    const handleDeleteTransaction = async (transaction: any) => {
+        if (window.confirm('この取引を削除してもよろしいですか？')) {
+            try {
+                await deleteTransaction(transaction.id);
+                console.log('取引を削除しました');
+            } catch (error) {
+                console.error('削除に失敗しました:', error);
+            }
         }
     };
 
@@ -164,7 +197,11 @@ export default function Dashboard() {
                                 <span className="text-xs text-primary-400">読み込み中...</span>
                             )}
                         </h2>
-                        <TransactionList transactions={transactions} />
+                        <TransactionList
+                            transactions={transactions}
+                            onEdit={handleEditTransaction}
+                            onDelete={handleDeleteTransaction}
+                        />
                     </div>
                     {/* PC表示用のサマリー */}
                     <div className="hidden md:block p-6 bg-surface rounded-2xl border border-white/5 h-fit">
@@ -196,7 +233,11 @@ export default function Dashboard() {
             {/* FAB (Floating Action Button) */}
             <motion.button
                 whileTap={{ scale: 0.9 }}
-                onClick={() => setIsTransactionFormOpen(true)}
+                onClick={() => {
+                    setEditingTransaction(null);
+                    setTransactionClient(null);
+                    setIsTransactionFormOpen(true);
+                }}
                 className="fixed bottom-6 right-6 md:bottom-10 md:right-10 w-14 h-14 bg-primary-500 hover:bg-primary-600 rounded-full shadow-lg shadow-primary-500/30 flex items-center justify-center text-white z-20 transition-colors"
             >
                 <Plus className="w-8 h-8" />
@@ -205,12 +246,19 @@ export default function Dashboard() {
             {/* Sheets */}
             <TransactionForm
                 open={isTransactionFormOpen}
-                onOpenChange={setIsTransactionFormOpen}
-                onSubmit={handleCreateTransaction}
+                onOpenChange={(open) => {
+                    setIsTransactionFormOpen(open);
+                    if (!open) {
+                        setEditingTransaction(null);
+                        setTransactionClient(null);
+                    }
+                }}
+                onSubmit={handleFormSubmit}
                 clients={clients}
                 onOpenClientSheet={() => setIsClientSheetOpen(true)}
                 initialDate={selectedDate}
                 selectedClient={transactionClient}
+                initialTransaction={editingTransaction}
             />
 
             <ClientSheet
