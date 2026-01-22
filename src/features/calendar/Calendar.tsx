@@ -213,35 +213,32 @@ export function Calendar({ transactions = [] }: CalendarProps) {
                                         {format(day, 'd')}
                                     </span>
 
-                                    {/* Mobile: Amount display */}
-                                    {(hasIncome || hasExpense) && (
-                                        <div className="flex flex-col items-center gap-0 mt-0.5 md:hidden">
-                                            {hasIncome && (
-                                                <span className={cn(
-                                                    'text-[8px] font-medium leading-tight',
-                                                    isSelected ? 'text-white/80' : 'text-income'
-                                                )}>
-                                                    +{incomeTotal >= 10000
-                                                        ? `${Math.floor(incomeTotal / 10000)}万`
-                                                        : incomeTotal >= 1000
-                                                            ? `${Math.floor(incomeTotal / 1000)}k`
-                                                            : incomeTotal.toLocaleString()}
-                                                </span>
-                                            )}
-                                            {hasExpense && (
-                                                <span className={cn(
-                                                    'text-[8px] font-medium leading-tight',
-                                                    isSelected ? 'text-white/80' : 'text-expense'
-                                                )}>
-                                                    -{expenseTotal >= 10000
-                                                        ? `${Math.floor(expenseTotal / 10000)}万`
-                                                        : expenseTotal >= 1000
-                                                            ? `${Math.floor(expenseTotal / 1000)}k`
-                                                            : expenseTotal.toLocaleString()}
-                                                </span>
-                                            )}
-                                        </div>
-                                    )}
+
+                                    {/* Mobile: Amount display - 常に2行で表示 */}
+                                    <div className="flex flex-col items-center gap-0 mt-0.5 md:hidden">
+                                        {/* 収入行（上） */}
+                                        <span className={cn(
+                                            'text-[9px] font-medium leading-tight',
+                                            isSelected ? 'text-white/80' : incomeTotal > 0 ? 'text-income' : 'text-gray-600'
+                                        )}>
+                                            {incomeTotal > 0
+                                                ? `+${incomeTotal >= 10000
+                                                    ? `${Math.floor(incomeTotal / 10000)}万`
+                                                    : incomeTotal.toLocaleString()}`
+                                                : '-'}
+                                        </span>
+                                        {/* 支出行（下） */}
+                                        <span className={cn(
+                                            'text-[9px] font-medium leading-tight',
+                                            isSelected ? 'text-white/80' : expenseTotal > 0 ? 'text-expense' : 'text-gray-600'
+                                        )}>
+                                            {expenseTotal > 0
+                                                ? `-${expenseTotal >= 10000
+                                                    ? `${Math.floor(expenseTotal / 10000)}万`
+                                                    : expenseTotal.toLocaleString()}`
+                                                : '-'}
+                                        </span>
+                                    </div>
 
                                     {/* Desktop: Details */}
                                     <div className="hidden md:flex flex-col w-full px-1 gap-0.5 mt-auto mb-1">
