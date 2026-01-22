@@ -111,6 +111,61 @@ export function Keypad({ onConfirm, onCancel, initialValue = '' }: KeypadProps) 
         closeKeypad();
     }, [onCancel, closeKeypad]);
 
+    // キーボードイベントリスナー（PC/外付けキーボード対応）
+    useEffect(() => {
+        if (!isKeypadOpen) return;
+
+        const handleKeyDown = (e: KeyboardEvent) => {
+            // 数字キー (0-9)
+            if (/^[0-9]$/.test(e.key)) {
+                e.preventDefault();
+                handleNumberInput(e.key);
+                return;
+            }
+
+            // 演算子
+            switch (e.key) {
+                case '+':
+                    e.preventDefault();
+                    handleOperator('+');
+                    break;
+                case '-':
+                    e.preventDefault();
+                    handleOperator('-');
+                    break;
+                case '*':
+                    e.preventDefault();
+                    handleOperator('×');
+                    break;
+                case '/':
+                    e.preventDefault();
+                    handleOperator('÷');
+                    break;
+                case 'Enter':
+                case '=':
+                    e.preventDefault();
+                    handleConfirm();
+                    break;
+                case 'Backspace':
+                    e.preventDefault();
+                    handleBackspace();
+                    break;
+                case 'Escape':
+                    e.preventDefault();
+                    handleCancel();
+                    break;
+                case 'c':
+                case 'C':
+                    e.preventDefault();
+                    handleClear();
+                    break;
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [isKeypadOpen, handleNumberInput, handleOperator, handleConfirm, handleBackspace, handleCancel, handleClear]);
+
     const formatDisplay = (value: string): string => {
         try {
             const num = new Decimal(value);

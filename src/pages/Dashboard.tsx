@@ -11,6 +11,7 @@ import { ToggleSwitch } from '../components/ui';
 import { useAppStore } from '../stores/appStore';
 import { useTransactions, useClients, type CreateTransactionInput, type CreateClientInput } from '../hooks';
 import RecurringSettings from './RecurringSettings';
+import { mapTransactionsForCalendar } from '../lib/transactionHelpers';
 import Decimal from 'decimal.js';
 
 export default function Dashboard() {
@@ -197,11 +198,7 @@ export default function Dashboard() {
             {/* メインコンテンツ */}
             <div className="space-y-6 max-w-5xl mx-auto">
                 {/* カレンダー */}
-                <Calendar transactions={transactions.map(t => ({
-                    date: t.transactionDate!,
-                    type: t.type,
-                    amount: parseInt(t.amount, 10),
-                }))} />
+                <Calendar transactions={mapTransactionsForCalendar(transactions, viewMode)} />
 
                 {/* トランザクションリスト */}
                 <div className="md:grid md:grid-cols-2 md:gap-6">
