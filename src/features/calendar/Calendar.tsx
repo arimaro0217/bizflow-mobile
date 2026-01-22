@@ -211,20 +211,32 @@ export function Calendar({ transactions = [] }: CalendarProps) {
                                         {format(day, 'd')}
                                     </span>
 
-                                    {/* Mobile: Dots */}
+                                    {/* Mobile: Amount display */}
                                     {(hasIncome || hasExpense) && (
-                                        <div className="flex gap-0.5 mt-1 md:hidden">
+                                        <div className="flex flex-col items-center gap-0 mt-0.5 md:hidden">
                                             {hasIncome && (
                                                 <span className={cn(
-                                                    'w-1.5 h-1.5 rounded-full',
-                                                    isSelected ? 'bg-white/70' : 'bg-income'
-                                                )} />
+                                                    'text-[8px] font-medium leading-tight',
+                                                    isSelected ? 'text-white/80' : 'text-income'
+                                                )}>
+                                                    +{incomeTotal >= 10000
+                                                        ? `${Math.floor(incomeTotal / 10000)}万`
+                                                        : incomeTotal >= 1000
+                                                            ? `${Math.floor(incomeTotal / 1000)}k`
+                                                            : incomeTotal.toLocaleString()}
+                                                </span>
                                             )}
                                             {hasExpense && (
                                                 <span className={cn(
-                                                    'w-1.5 h-1.5 rounded-full',
-                                                    isSelected ? 'bg-white/70' : 'bg-expense'
-                                                )} />
+                                                    'text-[8px] font-medium leading-tight',
+                                                    isSelected ? 'text-white/80' : 'text-expense'
+                                                )}>
+                                                    -{expenseTotal >= 10000
+                                                        ? `${Math.floor(expenseTotal / 10000)}万`
+                                                        : expenseTotal >= 1000
+                                                            ? `${Math.floor(expenseTotal / 1000)}k`
+                                                            : expenseTotal.toLocaleString()}
+                                                </span>
                                             )}
                                         </div>
                                     )}
