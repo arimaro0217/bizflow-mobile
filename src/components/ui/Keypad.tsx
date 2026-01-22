@@ -27,6 +27,17 @@ export function Keypad({ onConfirm, onCancel, initialValue = '' }: KeypadProps) 
         }
     }, [initialValue]);
 
+    // 背景スクロール防止
+    useEffect(() => {
+        if (isKeypadOpen) {
+            const originalStyle = window.getComputedStyle(document.body).overflow;
+            document.body.style.overflow = 'hidden';
+            return () => {
+                document.body.style.overflow = originalStyle;
+            };
+        }
+    }, [isKeypadOpen]);
+
     const handleNumberInput = useCallback((num: string) => {
         if (waitingForOperand) {
             setDisplayValue(num);
