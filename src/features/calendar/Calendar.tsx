@@ -33,12 +33,12 @@ export function Calendar({ transactions = [] }: CalendarProps) {
     const [currentDate, setCurrentDate] = useState(new Date());
     const [direction, setDirection] = useState(0);
 
-    const weekDays = ['日', '月', '火', '水', '木', '金', '土'];
+    const weekDays = ['月', '火', '水', '木', '金', '土', '日'];
 
     const days = useMemo(() => {
         if (calendarView === 'week') {
-            const start = startOfWeek(currentDate, { weekStartsOn: 0 });
-            const end = endOfWeek(currentDate, { weekStartsOn: 0 });
+            const start = startOfWeek(currentDate, { weekStartsOn: 1 });
+            const end = endOfWeek(currentDate, { weekStartsOn: 1 });
             return eachDayOfInterval({ start, end });
         } else {
             const start = startOfMonth(currentDate);
@@ -46,8 +46,10 @@ export function Calendar({ transactions = [] }: CalendarProps) {
             const monthDays = eachDayOfInterval({ start, end });
 
             // 週の始まりまで埋める
-            const startPadding = start.getDay();
-            const paddedStart = startOfWeek(start, { weekStartsOn: 0 });
+            // 月曜始まりでの曜日インデックス（月=0, 火=1, ..., 日=6）
+            const dayOfWeek = start.getDay();
+            const startPadding = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+            const paddedStart = startOfWeek(start, { weekStartsOn: 1 });
             const paddingDays = startPadding > 0
                 ? eachDayOfInterval({ start: paddedStart, end: new Date(start.getTime() - 86400000) })
                 : [];
@@ -152,7 +154,7 @@ export function Calendar({ transactions = [] }: CalendarProps) {
                         key={day}
                         className={cn(
                             'text-center text-xs md:text-sm font-medium py-1',
-                            index === 0 ? 'text-expense' : index === 6 ? 'text-income' : 'text-gray-400'
+                            index === 5 ? 'text-income' : index === 6 ? 'text-expense' : 'text-gray-400'
                         )}
                     >
                         {day}
