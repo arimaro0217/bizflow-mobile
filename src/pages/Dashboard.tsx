@@ -38,8 +38,9 @@ export default function Dashboard() {
                 transactionDate: data.transactionDate,
                 settlementDate: data.settlementDate,
                 isSettled: data.isSettled || false,
-                clientId: data.clientId,
-                memo: data.memo,
+                // Firestore は undefined をサポートしないため、undefined の場合は除外
+                ...(data.clientId && { clientId: data.clientId }),
+                ...(data.memo && { memo: data.memo }),
             };
             await addTransaction(input);
             console.log('取引を保存しました');
