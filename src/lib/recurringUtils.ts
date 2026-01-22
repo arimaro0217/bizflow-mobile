@@ -74,7 +74,7 @@ export function calculateNextOccurrence(
  * @param frequency - 頻度
  * @param dayOfPeriod - 日
  * @param monthOfYear - 月（yearlyの場合）
- * @param maxMonths - 無期限の場合の上限月数（デフォルト24ヶ月）
+ * @param maxMonths - 無期限の場合の上限月数（デフォルト12ヶ月）
  * @returns 発生日の配列
  */
 export function generateOccurrenceDates(
@@ -83,7 +83,7 @@ export function generateOccurrenceDates(
     frequency: 'monthly' | 'yearly',
     dayOfPeriod: number,
     monthOfYear?: number,
-    maxMonths: number = 24
+    maxMonths: number = 12
 ): Date[] {
     const dates: Date[] = [];
     const start = startOfDay(startDate);
