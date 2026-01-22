@@ -28,7 +28,7 @@ export function TransactionForm({
     initialDate = new Date(),
     selectedClient = null,
 }: TransactionFormProps) {
-    const { openKeypad } = useAppStore();
+    const { openKeypad, isKeypadOpen } = useAppStore();
     const [type, setType] = useState<'income' | 'expense'>('income');
     const [amount, setAmount] = useState('0');
     const [transactionDate] = useState(initialDate);
@@ -74,7 +74,11 @@ export function TransactionForm({
 
     return (
         <>
-            <Drawer.Root open={open} onOpenChange={onOpenChange}>
+            <Drawer.Root
+                open={open}
+                onOpenChange={onOpenChange}
+                dismissible={!isKeypadOpen}
+            >
                 <Drawer.Portal>
                     <Drawer.Overlay className="fixed inset-0 bg-black/50 z-40" />
                     <Drawer.Content className="fixed bottom-0 left-0 right-0 z-50 outline-none">
