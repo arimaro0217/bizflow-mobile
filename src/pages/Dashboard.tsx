@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { isSameMonth } from 'date-fns';
-import { Plus, Settings, Wallet, LayoutDashboard, LogOut, TrendingUp, PieChart } from 'lucide-react';
+import { Plus, Settings, Wallet, LayoutDashboard, LogOut, TrendingUp, PieChart, Repeat } from 'lucide-react';
 import { AppLayout } from '../components/layout/AppLayout';
 import { motion } from 'framer-motion';
 import { useAuth } from '../features/auth';
@@ -10,6 +10,7 @@ import { TransactionForm } from '../features/transactions';
 import { ToggleSwitch } from '../components/ui';
 import { useAppStore } from '../stores/appStore';
 import { useTransactions, useClients, type CreateTransactionInput, type CreateClientInput } from '../hooks';
+import RecurringSettings from './RecurringSettings';
 import Decimal from 'decimal.js';
 
 export default function Dashboard() {
@@ -25,6 +26,7 @@ export default function Dashboard() {
     const [isTransactionFormOpen, setIsTransactionFormOpen] = useState(false);
     const [transactionClient, setTransactionClient] = useState<any>(null);
     const [editingTransaction, setEditingTransaction] = useState<any>(null);
+    const [showRecurringSettings, setShowRecurringSettings] = useState(false);
 
     // Firestoreからリアルタイムでデータを取得
     const { transactions, loading: transactionsLoading, addTransaction, updateTransaction, deleteTransaction } = useTransactions(user?.uid);
@@ -132,6 +134,13 @@ export default function Dashboard() {
                     <PieChart className="w-5 h-5" />
                     レポート
                 </button>
+                <button
+                    onClick={() => setShowRecurringSettings(true)}
+                    className="w-full flex items-center gap-3 px-4 py-3 text-gray-400 hover:bg-white/5 rounded-xl font-medium transition-colors"
+                >
+                    <Repeat className="w-5 h-5" />
+                    定期取引
+                </button>
                 <button className="w-full flex items-center gap-3 px-4 py-3 text-gray-400 hover:bg-white/5 rounded-xl font-medium transition-colors">
                     <Settings className="w-5 h-5" />
                     設定
@@ -175,6 +184,13 @@ export default function Dashboard() {
             </div>
         </div>
     );
+
+    // 定期取引設定画面
+    if (showRecurringSettings) {
+        return (
+            <RecurringSettings onBack={() => setShowRecurringSettings(false)} />
+        );
+    }
 
     return (
         <AppLayout sidebar={sidebarContent} header={headerContent}>
