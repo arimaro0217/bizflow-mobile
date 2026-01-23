@@ -1,7 +1,7 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Drawer } from 'vaul';
-import { Search, Plus, Building2 } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { Search, Plus, Building2, Pencil, Trash2, GripVertical, X, Check } from 'lucide-react';
+import { motion, Reorder, useDragControls } from 'framer-motion';
 import { cn } from '../../lib/utils';
 import { formatPaymentCycle } from '../../lib/settlement';
 import type { Client } from '../../types';
@@ -13,6 +13,9 @@ interface ClientSheetProps {
     clients: Client[];
     onSelect: (client: Client) => void;
     onCreateNew?: () => void;
+    onEdit?: (client: Client) => void;
+    onDelete?: (client: Client) => void;
+    onReorder?: (orderedIds: string[]) => void;
 }
 
 export function ClientSheet({
@@ -21,16 +24,42 @@ export function ClientSheet({
     clients,
     onSelect,
     onCreateNew,
+    onEdit,
+    onDelete,
+    onReorder,
 }: ClientSheetProps) {
     const [searchQuery, setSearchQuery] = useState('');
+    const [isEditMode, setIsEditMode] = useState(false);
+    const [orderedClients, setOrderedClients] = useState<Client[]>([]);
+
+    // クライアントリストが変わったらローカルステートを更新
+    useEffect(() => {
+        setOrderedClients(clients);
+    }, [clients]);
 
     const filteredClients = useMemo(() => {
-        if (!searchQuery) return clients;
+        if (!searchQuery) return orderedClients;
         const query = searchQuery.toLowerCase();
-        return clients.filter(client =>
+        return orderedClients.filter(client =>
             client.name.toLowerCase().includes(query)
         );
-    }, [clients, searchQuery]);
+    }, [orderedClients, searchQuery]);
+
+    const handleReorder = (newOrder: Client[]) => {
+        setOrderedClients(newOrder);
+    };
+
+    const handleSaveOrder = async () => {
+        if (onReorder) {
+            await onReorder(orderedClients.map(c => c.id));
+        }
+        setIsEditMode(false);
+    };
+
+    const handleCancelEdit = () => {
+        setOrderedClients(clients);
+        setIsEditMode(false);
+    };
 
     return (
         <Drawer.Root open={open} onOpenChange={onOpenChange}>
@@ -45,25 +74,46 @@ export function ClientSheet({
 
                         {/* ヘッダー */}
                         <div className="px-6 pb-4">
-                            <h2 className="text-xl font-semibold text-white mb-4">取引先を選択</h2>
-
-                            {/* 検索バー */}
-                            <div className="relative">
-                                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
-                                <input
-                                    type="text"
-                                    value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                    placeholder="取引先を検索..."
-                                    className="w-full pl-12 pr-4 py-3 bg-surface rounded-xl text-white placeholder-gray-500 outline-none focus:ring-2 focus:ring-primary-500"
-                                />
+                            <div className="flex items-center justify-between mb-4">
+                                <h2 className="text-xl font-semibold text-white">
+                                    {isEditMode ? '取引先を編集' : '取引先を選択'}
+                                </h2>
+                                {!isEditMode && onEdit && (
+                                    <button
+                                        onClick={() => setIsEditMode(true)}
+                                        className="text-sm text-primary-400 hover:text-primary-300"
+                                    >
+                                        編集
+                                    </button>
+                                )}
                             </div>
+
+                            {/* 検索バー（編集モードでない場合のみ） */}
+                            {!isEditMode && (
+                                <div className="relative">
+                                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
+                                    <input
+                                        type="text"
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        placeholder="取引先を検索..."
+                                        className="w-full pl-12 pr-4 py-3 bg-surface rounded-xl text-white placeholder-gray-500 outline-none focus:ring-2 focus:ring-primary-500"
+                                    />
+                                </div>
+                            )}
+
+                            {/* 編集モードの説明 */}
+                            {isEditMode && (
+                                <p className="text-sm text-gray-400">
+                                    ドラッグで並べ替え、アイコンで編集・削除
+                                </p>
+                            )}
                         </div>
 
                         {/* リスト */}
                         <div className="flex-1 overflow-y-auto px-4 pb-safe">
-                            {/* 新規作成ボタン */}
-                            {onCreateNew && (
+                            {/* 新規作成ボタン（編集モードでない場合のみ） */}
+                            {onCreateNew && !isEditMode && (
                                 <button
                                     onClick={onCreateNew}
                                     className="w-full flex items-center gap-3 p-4 mb-2 bg-primary-600/20 rounded-xl text-primary-400 hover:bg-primary-600/30 transition-colors"
@@ -81,7 +131,25 @@ export function ClientSheet({
                                         {searchQuery ? '該当する取引先がありません' : '取引先が登録されていません'}
                                     </p>
                                 </div>
+                            ) : isEditMode ? (
+                                // 編集モード: ドラッグで並べ替え可能
+                                <Reorder.Group
+                                    axis="y"
+                                    values={orderedClients}
+                                    onReorder={handleReorder}
+                                    className="space-y-2"
+                                >
+                                    {orderedClients.map((client) => (
+                                        <ClientEditItem
+                                            key={client.id}
+                                            client={client}
+                                            onEdit={() => onEdit?.(client)}
+                                            onDelete={() => onDelete?.(client)}
+                                        />
+                                    ))}
+                                </Reorder.Group>
                             ) : (
+                                // 通常モード: 選択のみ
                                 <div className="space-y-2">
                                     {filteredClients.map((client, index) => (
                                         <motion.button
@@ -115,6 +183,26 @@ export function ClientSheet({
                                 </div>
                             )}
                         </div>
+
+                        {/* 編集モードのボタン */}
+                        {isEditMode && (
+                            <div className="px-6 py-4 grid grid-cols-2 gap-3 border-t border-white/5">
+                                <button
+                                    onClick={handleCancelEdit}
+                                    className="h-12 rounded-xl bg-surface-light text-gray-400 flex items-center justify-center gap-2 font-medium hover:bg-surface transition-colors"
+                                >
+                                    <X className="w-5 h-5" />
+                                    キャンセル
+                                </button>
+                                <button
+                                    onClick={handleSaveOrder}
+                                    className="h-12 rounded-xl bg-primary-500 text-white flex items-center justify-center gap-2 font-medium hover:bg-primary-600 transition-colors"
+                                >
+                                    <Check className="w-5 h-5" />
+                                    保存
+                                </button>
+                            </div>
+                        )}
                     </div>
                 </Drawer.Content>
             </Drawer.Portal>
@@ -122,18 +210,95 @@ export function ClientSheet({
     );
 }
 
-// 取引先新規作成フォーム
+// 編集モード用のドラッグ可能なアイテム
+interface ClientEditItemProps {
+    client: Client;
+    onEdit: () => void;
+    onDelete: () => void;
+}
+
+function ClientEditItem({ client, onEdit, onDelete }: ClientEditItemProps) {
+    const controls = useDragControls();
+
+    return (
+        <Reorder.Item
+            value={client}
+            dragListener={false}
+            dragControls={controls}
+            className="w-full flex items-center gap-3 p-4 bg-surface-light rounded-xl"
+        >
+            {/* ドラッグハンドル */}
+            <button
+                onPointerDown={(e) => controls.start(e)}
+                className="touch-none cursor-grab active:cursor-grabbing p-1"
+            >
+                <GripVertical className="w-5 h-5 text-gray-500" />
+            </button>
+
+            {/* アイコン */}
+            <div className="w-10 h-10 bg-surface rounded-xl flex items-center justify-center">
+                <Building2 className="w-5 h-5 text-gray-400" />
+            </div>
+
+            {/* 名前 */}
+            <div className="flex-1 min-w-0">
+                <p className="text-white font-medium truncate">{client.name}</p>
+                <p className="text-gray-500 text-sm truncate">
+                    {formatPaymentCycle(client.closingDay, client.paymentMonthOffset, client.paymentDay)}
+                </p>
+            </div>
+
+            {/* アクションボタン */}
+            <div className="flex items-center gap-2">
+                <button
+                    onClick={onEdit}
+                    className="p-2 rounded-lg bg-primary-500/20 text-primary-400 hover:bg-primary-500/30 transition-colors"
+                >
+                    <Pencil className="w-4 h-4" />
+                </button>
+                <button
+                    onClick={onDelete}
+                    className="p-2 rounded-lg bg-expense/20 text-expense hover:bg-expense/30 transition-colors"
+                >
+                    <Trash2 className="w-4 h-4" />
+                </button>
+            </div>
+        </Reorder.Item>
+    );
+}
+
+// 取引先新規作成/編集フォーム
 interface ClientFormProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     onSubmit: (data: Omit<Client, 'id' | 'uid' | 'createdAt'>) => void;
+    initialClient?: Client | null;
 }
 
-export function ClientFormSheet({ open, onOpenChange, onSubmit }: ClientFormProps) {
+export function ClientFormSheet({ open, onOpenChange, onSubmit, initialClient = null }: ClientFormProps) {
     const [name, setName] = useState('');
     const [closingDay, setClosingDay] = useState<number>(99);
     const [paymentMonthOffset, setPaymentMonthOffset] = useState<number>(1);
     const [paymentDay, setPaymentDay] = useState<number>(99);
+
+    const isEditing = !!initialClient;
+
+    // 編集モード時の初期値セット
+    useEffect(() => {
+        if (open) {
+            if (initialClient) {
+                setName(initialClient.name);
+                setClosingDay(initialClient.closingDay);
+                setPaymentMonthOffset(initialClient.paymentMonthOffset);
+                setPaymentDay(initialClient.paymentDay);
+            } else {
+                setName('');
+                setClosingDay(99);
+                setPaymentMonthOffset(1);
+                setPaymentDay(99);
+            }
+        }
+    }, [open, initialClient]);
 
     const handleSubmit = () => {
         if (!name.trim()) return;
@@ -183,7 +348,9 @@ export function ClientFormSheet({ open, onOpenChange, onSubmit }: ClientFormProp
 
                         {/* ヘッダー */}
                         <div className="px-6 pb-4">
-                            <h2 className="text-xl font-semibold text-white">新しい取引先</h2>
+                            <h2 className="text-xl font-semibold text-white">
+                                {isEditing ? '取引先を編集' : '新しい取引先'}
+                            </h2>
                         </div>
 
                         {/* フォーム */}
@@ -287,7 +454,7 @@ export function ClientFormSheet({ open, onOpenChange, onSubmit }: ClientFormProp
                                     size="lg"
                                     className="w-full"
                                 >
-                                    保存
+                                    {isEditing ? '更新' : '保存'}
                                 </Button>
                             </div>
                         </div>

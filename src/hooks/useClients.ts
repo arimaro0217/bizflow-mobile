@@ -18,6 +18,7 @@ import {
     query,
     orderBy,
     serverTimestamp,
+    writeBatch,
     type Timestamp,
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
@@ -29,6 +30,7 @@ interface FirestoreClient {
     closingDay: number;
     paymentMonthOffset: number;
     paymentDay: number;
+    sortOrder?: number;
     createdAt: Timestamp | null;
 }
 
@@ -38,6 +40,7 @@ export interface CreateClientInput {
     closingDay: number;
     paymentMonthOffset: number;
     paymentDay: number;
+    sortOrder?: number;
 }
 
 interface ClientsState {
@@ -56,6 +59,8 @@ interface ClientsActions {
     updateClient: (id: string, data: Partial<CreateClientInput>) => Promise<void>;
     /** 取引先を削除 */
     deleteClient: (id: string) => Promise<void>;
+    /** 取引先の順序を一括更新 */
+    updateClientsOrder: (orderedIds: string[]) => Promise<void>;
 }
 
 export type UseClientsReturn = ClientsState & ClientsActions;
@@ -100,9 +105,12 @@ export function useClients(uid: string | undefined): UseClientsReturn {
                         closingDay: data.closingDay,
                         paymentMonthOffset: data.paymentMonthOffset,
                         paymentDay: data.paymentDay,
+                        sortOrder: data.sortOrder ?? 0,
                         createdAt: data.createdAt?.toDate() ?? null,
                     };
                 });
+                // sortOrderでソート（小さいほど上）
+                clients.sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
                 setState({ clients, loading: false, error: null });
             },
             (error) => {
@@ -158,14 +166,30 @@ export function useClients(uid: string | undefined): UseClientsReturn {
         [uid]
     );
 
+    // 取引先の順序を一括更新
+    const updateClientsOrder = useCallback(
+        async (orderedIds: string[]): Promise<void> => {
+            if (!uid) throw new Error('ログインが必要です');
+
+            const batch = writeBatch(db);
+            orderedIds.forEach((id, index) => {
+                const docRef = doc(db, 'users', uid, 'clients', id);
+                batch.update(docRef, { sortOrder: index });
+            });
+            await batch.commit();
+        },
+        [uid]
+    );
+
     return useMemo(
         () => ({
             ...state,
             addClient,
             updateClient,
             deleteClient,
+            updateClientsOrder,
         }),
-        [state, addClient, updateClient, deleteClient]
+        [state, addClient, updateClient, deleteClient, updateClientsOrder]
     );
 }
 

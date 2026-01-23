@@ -6,6 +6,7 @@ export interface Client {
     closingDay: number; // 締日（99=月末）
     paymentMonthOffset: number; // 入金サイト（0=当月, 1=翌月...）
     paymentDay: number; // 支払日（99=月末）
+    sortOrder?: number; // 表示順序（小さいほど上）
     createdAt: Date | null;
 }
 

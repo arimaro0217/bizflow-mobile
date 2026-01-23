@@ -31,7 +31,8 @@ export default function Dashboard() {
 
     // Firestoreからリアルタイムでデータを取得
     const { transactions, loading: transactionsLoading, addTransaction, updateTransaction, deleteTransaction } = useTransactions(user?.uid);
-    const { clients, addClient } = useClients(user?.uid);
+    const { clients, addClient, updateClient, deleteClient, updateClientsOrder } = useClients(user?.uid);
+    const [editingClient, setEditingClient] = useState<any>(null);
 
     const handleFormSubmit = async (data: any) => {
         try {
@@ -88,16 +89,56 @@ export default function Dashboard() {
 
     const handleCreateClient = async (data: any) => {
         try {
-            const input: CreateClientInput = {
-                name: data.name,
-                closingDay: data.closingDay,
-                paymentMonthOffset: data.paymentMonthOffset,
-                paymentDay: data.paymentDay,
-            };
-            await addClient(input);
-            console.log('取引先を保存しました');
+            if (editingClient) {
+                // 編集モード
+                await updateClient(editingClient.id, {
+                    name: data.name,
+                    closingDay: data.closingDay,
+                    paymentMonthOffset: data.paymentMonthOffset,
+                    paymentDay: data.paymentDay,
+                });
+                console.log('取引先を更新しました');
+                setEditingClient(null);
+            } else {
+                // 新規作成モード
+                const input: CreateClientInput = {
+                    name: data.name,
+                    closingDay: data.closingDay,
+                    paymentMonthOffset: data.paymentMonthOffset,
+                    paymentDay: data.paymentDay,
+                    sortOrder: clients.length, // 末尾に追加
+                };
+                await addClient(input);
+                console.log('取引先を保存しました');
+            }
         } catch (error) {
             console.error('取引先の保存に失敗:', error);
+        }
+    };
+
+    const handleEditClient = (client: any) => {
+        setEditingClient(client);
+        setIsClientSheetOpen(false);
+        setTimeout(() => setIsClientFormOpen(true), 200);
+    };
+
+    const handleDeleteClient = async (client: any) => {
+        if (window.confirm(`「${client.name}」を削除しますか？`)) {
+            try {
+                await deleteClient(client.id);
+                console.log('取引先を削除しました');
+            } catch (error) {
+                console.error('削除に失敗:', error);
+            }
+        }
+    };
+
+    const handleReorderClients = async (orderedIds: string[]) => {
+        try {
+            await updateClientsOrder(orderedIds);
+            console.log('取引先の順序を更新しました');
+        } catch (error) {
+            console.error('順序の更新に失敗:', error);
         }
     };
 
@@ -283,15 +324,23 @@ export default function Dashboard() {
                     setIsClientSheetOpen(false);
                 }}
                 onCreateNew={() => {
+                    setEditingClient(null);
                     setIsClientSheetOpen(false);
                     setTimeout(() => setIsClientFormOpen(true), 200);
                 }}
+                onEdit={handleEditClient}
+                onDelete={handleDeleteClient}
+                onReorder={handleReorderClients}
             />
 
             <ClientFormSheet
                 open={isClientFormOpen}
-                onOpenChange={setIsClientFormOpen}
+                onOpenChange={(open) => {
+                    setIsClientFormOpen(open);
+                    if (!open) setEditingClient(null);
+                }}
                 onSubmit={handleCreateClient}
+                initialClient={editingClient}
             />
         </AppLayout>
     );
