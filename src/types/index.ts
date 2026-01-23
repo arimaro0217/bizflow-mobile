@@ -10,6 +10,32 @@ export interface Client {
     createdAt: Date | null;
 }
 
+// =============================================================================
+// 案件 (Project) - 業務カレンダーのコア
+// =============================================================================
+// 【設計意図】
+// - 案件を登録すると自動でTransaction（入金予定）が生成される
+// - カレンダー上でバーとして可視化される
+// - 取引先の入金サイトに基づいて入金予定日を自動計算
+// =============================================================================
+export type ProjectStatus = 'draft' | 'confirmed' | 'completed';
+export type ProjectColor = 'blue' | 'orange' | 'green' | 'purple' | 'gray';
+
+export interface Project {
+    id: string;
+    uid: string;
+    clientId: string;                // 取引先ID（必須）
+    title: string;                   // 案件名
+    startDate: Date | null;          // 開始日
+    endDate: Date | null;            // 終了日（納品予定日）
+    status: ProjectStatus;           // ステータス
+    color: ProjectColor;             // カレンダー表示色
+    estimatedAmount: string;         // 見積金額（decimal.js用にstring）
+    memo?: string;                   // メモ
+    createdAt: Date | null;
+    updatedAt: Date | null;
+}
+
 // 取引 (Transaction)
 export interface Transaction {
     id: string;
@@ -30,6 +56,10 @@ export interface Transaction {
     recurringMasterId?: string;      // 親ルールのID（nullなら単発取引）
     recurringInstanceDate?: Date;    // 本来の予定日（日付変更時の追跡用）
     isDetached?: boolean;            // 逸脱フラグ（個別変更された場合true）
+
+    // ▼ 案件連動用
+    projectId?: string;              // 紐付く案件ID
+    isEstimate?: boolean;            // 見込み段階フラグ（案件作成時に自動生成）
 }
 
 // 定期取引マスタ (RecurringMaster)
@@ -72,4 +102,5 @@ export interface UserSettings {
     currency: string;
     fiscalYearStart: number; // 1-12
 }
+
 
