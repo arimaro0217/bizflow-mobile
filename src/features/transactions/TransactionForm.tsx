@@ -6,7 +6,7 @@ import { ArrowDownCircle, ArrowUpCircle, Calendar, Building2 } from 'lucide-reac
 import { motion } from 'framer-motion';
 import { cn, formatCurrency } from '../../lib/utils';
 import { calculateSettlementDate } from '../../lib/settlement';
-import { Button, Keypad } from '../../components/ui';
+import { Button, Keypad, DatePicker } from '../../components/ui';
 import { useAppStore } from '../../stores/appStore';
 import type { Client, Transaction } from '../../types';
 
@@ -36,6 +36,7 @@ export function TransactionForm({
     const [transactionDate, setTransactionDate] = useState(initialDate);
     const [memo, setMemo] = useState('');
     const [taxRate] = useState('0.1');
+    const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
 
     // 編集モード時の初期値セット
     useEffect(() => {
@@ -177,7 +178,10 @@ export function TransactionForm({
                                     <label className="block text-sm font-medium text-gray-400 mb-2">
                                         日付
                                     </label>
-                                    <button className="w-full flex items-center gap-3 p-4 bg-surface rounded-xl text-left">
+                                    <button
+                                        onClick={() => setIsDatePickerOpen(true)}
+                                        className="w-full flex items-center gap-3 p-4 bg-surface rounded-xl text-left hover:bg-surface-light transition-colors"
+                                    >
                                         <Calendar className="w-5 h-5 text-gray-400" />
                                         <span className="text-white">
                                             {format(transactionDate, 'yyyy年M月d日 (E)', { locale: ja })}
@@ -236,6 +240,14 @@ export function TransactionForm({
             <Keypad
                 onConfirm={handleAmountConfirm}
                 initialValue={amount}
+            />
+
+            {/* 日付ピッカー */}
+            <DatePicker
+                open={isDatePickerOpen}
+                onOpenChange={setIsDatePickerOpen}
+                value={transactionDate}
+                onConfirm={setTransactionDate}
             />
         </>
     );
