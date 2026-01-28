@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useDrag } from '@use-gesture/react';
 import {
@@ -19,19 +19,41 @@ import { ja } from 'date-fns/locale';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useAppStore } from '../../stores/appStore';
+import { DateTransactionsSheet } from './components/DateTransactionsSheet';
+import type { Transaction, Client } from '../../types';
 
-interface CalendarProps {
-    transactions?: {
-        date: Date;
-        type: 'income' | 'expense';
-        amount?: number; // 金額表示用に追加
-    }[];
+// カレンダー表示用の軽量データ
+interface CalendarTransaction {
+    date: Date;
+    type: 'income' | 'expense';
+    amount?: number;
 }
 
-export function Calendar({ transactions = [] }: CalendarProps) {
+interface CalendarProps {
+    /** カレンダー表示用の軽量データ */
+    transactions?: CalendarTransaction[];
+    /** ポップアップ表示用の完全なTransaction配列 */
+    fullTransactions?: Transaction[];
+    /** 取引先一覧（ポップアップ表示用） */
+    clients?: Client[];
+    /** 取引クリック時のコールバック */
+    onTransactionClick?: (transaction: Transaction) => void;
+}
+
+export function Calendar({
+    transactions = [],
+    fullTransactions = [],
+    clients = [],
+    onTransactionClick
+}: CalendarProps) {
     const { selectedDate, setSelectedDate, calendarView, setCalendarView } = useAppStore();
     const [currentDate, setCurrentDate] = useState(new Date());
     const [direction, setDirection] = useState(0);
+
+    // 日付詳細シートの状態
+    const [detailSheetOpen, setDetailSheetOpen] = useState(false);
+    const [detailDate, setDetailDate] = useState<Date | null>(null);
+    const [detailTransactions, setDetailTransactions] = useState<Transaction[]>([]);
 
     const weekDays = ['月', '火', '水', '木', '金', '土', '日'];
 
@@ -75,6 +97,48 @@ export function Calendar({ transactions = [] }: CalendarProps) {
         },
         { axis: 'x', filterTaps: true }
     );
+
+    // ダブルタップ検出用のref
+    const lastTapRef = useRef<{ date: string; time: number } | null>(null);
+    const DOUBLE_TAP_DELAY = 300; // ミリ秒
+
+    // 日付をクリックした時の処理（ダブルタップでポップアップ表示）
+    const handleDateClick = (day: Date) => {
+        const now = Date.now();
+        const dateKey = day.toISOString();
+        const lastTap = lastTapRef.current;
+
+        // 常に日付を選択
+        setSelectedDate(day);
+
+        // ダブルタップ判定
+        if (lastTap && lastTap.date === dateKey && (now - lastTap.time) < DOUBLE_TAP_DELAY) {
+            // ダブルタップ: ポップアップを表示
+            lastTapRef.current = null; // リセット
+
+            // その日のトランザクションを取得
+            const dayTxs = fullTransactions.filter(t => {
+                const txDate = t.transactionDate;
+                return txDate && isSameDay(txDate, day);
+            });
+
+            // 取引がある場合のみシートを開く
+            if (dayTxs.length > 0) {
+                setDetailDate(day);
+                setDetailTransactions(dayTxs);
+                setDetailSheetOpen(true);
+            }
+        } else {
+            // シングルタップ: 次のタップを待つ
+            lastTapRef.current = { date: dateKey, time: now };
+        }
+    };
+
+    // シート内の取引をクリックした時
+    const handleTransactionClick = (tx: Transaction) => {
+        setDetailSheetOpen(false);
+        onTransactionClick?.(tx);
+    };
 
     const getDayData = (date: Date) => {
         const dayTransactions = transactions.filter(t => isSameDay(t.date, date));
@@ -186,7 +250,7 @@ export function Calendar({ transactions = [] }: CalendarProps) {
                                 <motion.button
                                     key={day.toISOString()}
                                     whileTap={{ scale: 0.98 }}
-                                    onClick={() => setSelectedDate(day)}
+                                    onClick={() => handleDateClick(day)}
                                     className={cn(
                                         'relative flex flex-col items-center justify-start py-2 rounded-xl md:rounded-none transition-all overflow-hidden',
                                         // Mobile Styles
@@ -260,6 +324,16 @@ export function Calendar({ transactions = [] }: CalendarProps) {
                     </motion.div>
                 </AnimatePresence>
             </div>
+
+            {/* 日付詳細シート */}
+            <DateTransactionsSheet
+                open={detailSheetOpen}
+                onOpenChange={setDetailSheetOpen}
+                date={detailDate}
+                transactions={detailTransactions}
+                clients={clients}
+                onTransactionClick={handleTransactionClick}
+            />
         </div>
     );
 }

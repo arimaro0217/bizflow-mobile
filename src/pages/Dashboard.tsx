@@ -239,7 +239,12 @@ export default function Dashboard() {
             {/* メインコンテンツ */}
             <div className="space-y-6 max-w-5xl mx-auto">
                 {/* カレンダー */}
-                <Calendar transactions={mapTransactionsForCalendar(transactions, viewMode)} />
+                <Calendar
+                    transactions={mapTransactionsForCalendar(transactions, viewMode)}
+                    fullTransactions={transactions}
+                    clients={clients}
+                    onTransactionClick={handleEditTransaction}
+                />
 
                 {/* トランザクションリスト */}
                 <div className="md:grid md:grid-cols-2 md:gap-6">
