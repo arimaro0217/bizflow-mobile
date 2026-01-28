@@ -1,48 +1,474 @@
 // ==============================================================================
-// Firestoreセキュリティルール
+// Firestore セキュリティルール - Production Grade
 // ==============================================================================
-// 【設計意図】
-// - 認証必須: ログインしていないユーザーはアクセス不可
-// - 自分のデータのみ: request.auth.uid がドキュメントパスのuidと一致する場合のみ許可
-// - サブコレクションも同様のルールで保護
+// 【設計思想】ゼロトラスト
+// - 全てのクライアントサイドリクエストは信用しない
+// - 認証必須 + 所有権検証 + スキーマバリデーション + イミュータブルフィールド保護
 // ==============================================================================
 
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // ユーザードキュメント
+    // =========================================================================
+    // 共通ヘルパー関数
+    // =========================================================================
+    
+    // 認証済みかどうかを確認
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // リクエストユーザーがドキュメントの所有者かどうかを確認
+    // サブコレクションパターンでは、パスのuserIdと認証uidが一致すればOK
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // =========================================================================
+    // 共通バリデーション関数
+    // =========================================================================
+    
+    // Timestamp型かどうかを確認（nullを許容する場合もあり）
+    function isValidTimestamp(value) {
+      return value is timestamp;
+    }
+    
+    // Timestamp型またはnullかどうかを確認
+    function isValidTimestampOrNull(value) {
+      return value == null || value is timestamp;
+    }
+    
+    // 文字列が数値形式（整数または小数、負数対応）かどうかを確認
+    // 例: "100", "-50", "1234.56", "-99.9"
+    function isValidDecimalString(value) {
+      return value is string && value.matches('^-?\\d+(\\.\\d+)?$');
+    }
+    
+    // 取引タイプの検証（income または expense のみ許可）
+    function isValidTransactionType(value) {
+      return value == 'income' || value == 'expense';
+    }
+    
+    // 締日/支払日の検証（1-31または99=月末）
+    function isValidDayOfMonth(value) {
+      return value is int && ((value >= 1 && value <= 31) || value == 99);
+    }
+    
+    // プロジェクトステータスの検証
+    function isValidProjectStatus(value) {
+      return value == 'draft' || value == 'confirmed' || value == 'completed';
+    }
+    
+    // プロジェクトカラーの検証
+    function isValidProjectColor(value) {
+      return value == 'blue' || value == 'orange' || value == 'green' || value == 'purple' || value == 'gray';
+    }
+    
+    // 定期取引の頻度検証
+    function isValidFrequency(value) {
+      return value == 'monthly' || value == 'yearly';
+    }
+    
+    // 日付の整合性チェック（startDate <= endDate）
+    // 両方がnullでない場合のみチェック
+    function isValidDateRange(startDate, endDate) {
+      return startDate == null || endDate == null || startDate <= endDate;
+    }
+    
+    // =========================================================================
+    // イミュータブルフィールドの保護
+    // =========================================================================
+    
+    // Update時にuidが変更されていないことを確認
+    function uidUnchanged() {
+      return !('uid' in request.resource.data) || 
+             request.resource.data.uid == resource.data.uid;
+    }
+    
+    // Update時にcreatedAtが変更されていないことを確認
+    function createdAtUnchanged() {
+      return !('createdAt' in request.resource.data) || 
+             request.resource.data.createdAt == resource.data.createdAt;
+    }
+    
+    // イミュータブルフィールドが保護されていることを確認
+    function immutableFieldsProtected() {
+      return uidUnchanged() && createdAtUnchanged();
+    }
+    
+    // =========================================================================
+    // Transaction スキーマ検証
+    // =========================================================================
+    
+    function isValidTransactionCreate(data) {
+      // 必須フィールドの存在確認
+      return data.keys().hasAll(['uid', 'type', 'amount', 'createdAt']) &&
+             // uid: 認証uidと一致すること（なりすまし防止）
+             data.uid == request.auth.uid &&
+             // type: 'income' または 'expense'
+             isValidTransactionType(data.type) &&
+             // amount: 数値形式の文字列
+             isValidDecimalString(data.amount) &&
+             // taxRate: 存在する場合は数値形式の文字列
+             (!('taxRate' in data) || isValidDecimalString(data.taxRate)) &&
+             // transactionDate: Timestamp または null
+             (!('transactionDate' in data) || isValidTimestampOrNull(data.transactionDate)) &&
+             // settlementDate: Timestamp または null
+             (!('settlementDate' in data) || isValidTimestampOrNull(data.settlementDate)) &&
+             // isSettled: boolean
+             (!('isSettled' in data) || data.isSettled is bool) &&
+             // clientId: 存在する場合は文字列
+             (!('clientId' in data) || data.clientId is string) &&
+             // categoryId: 存在する場合は文字列
+             (!('categoryId' in data) || data.categoryId is string) &&
+             // projectId: 存在する場合は文字列
+             (!('projectId' in data) || data.projectId is string) &&
+             // memo: 存在する場合は文字列
+             (!('memo' in data) || data.memo is string) &&
+             // recurringMasterId: 存在する場合は文字列
+             (!('recurringMasterId' in data) || data.recurringMasterId is string) &&
+             // createdAt: Timestamp型
+             isValidTimestamp(data.createdAt) &&
+             // updatedAt: 存在する場合はTimestamp
+             (!('updatedAt' in data) || isValidTimestampOrNull(data.updatedAt));
+    }
+    
+    function isValidTransactionUpdate(data) {
+      // 更新時は必須フィールドのチェックと型バリデーション
+      return 
+             // type: 存在する場合は有効な値
+             (!('type' in data) || isValidTransactionType(data.type)) &&
+             // amount: 存在する場合は数値形式の文字列
+             (!('amount' in data) || isValidDecimalString(data.amount)) &&
+             // taxRate: 存在する場合は数値形式の文字列
+             (!('taxRate' in data) || isValidDecimalString(data.taxRate)) &&
+             // transactionDate: Timestamp または null
+             (!('transactionDate' in data) || isValidTimestampOrNull(data.transactionDate)) &&
+             // settlementDate: Timestamp または null
+             (!('settlementDate' in data) || isValidTimestampOrNull(data.settlementDate)) &&
+             // isSettled: boolean
+             (!('isSettled' in data) || data.isSettled is bool) &&
+             // clientId: 存在する場合は文字列
+             (!('clientId' in data) || data.clientId is string) &&
+             // categoryId: 存在する場合は文字列
+             (!('categoryId' in data) || data.categoryId is string) &&
+             // projectId: 存在する場合は文字列
+             (!('projectId' in data) || data.projectId is string) &&
+             // memo: 存在する場合は文字列
+             (!('memo' in data) || data.memo is string) &&
+             // recurringMasterId: 存在する場合は文字列
+             (!('recurringMasterId' in data) || data.recurringMasterId is string) &&
+             // updatedAt: 存在する場合はTimestamp
+             (!('updatedAt' in data) || isValidTimestampOrNull(data.updatedAt)) &&
+             // イミュータブルフィールドの保護
+             immutableFieldsProtected();
+    }
+    
+    // =========================================================================
+    // Client スキーマ検証
+    // =========================================================================
+    
+    function isValidClientCreate(data) {
+      return data.keys().hasAll(['uid', 'name', 'createdAt']) &&
+             // uid: 認証uidと一致
+             data.uid == request.auth.uid &&
+             // name: 文字列
+             data.name is string &&
+             // closingDay: 存在する場合は有効な日（1-31 or 99）
+             (!('closingDay' in data) || isValidDayOfMonth(data.closingDay)) &&
+             // paymentMonthOffset: 存在する場合は整数
+             (!('paymentMonthOffset' in data) || data.paymentMonthOffset is int) &&
+             // paymentDay: 存在する場合は有効な日（1-31 or 99）
+             (!('paymentDay' in data) || isValidDayOfMonth(data.paymentDay)) &&
+             // sortOrder: 存在する場合は整数
+             (!('sortOrder' in data) || data.sortOrder is int) &&
+             // createdAt: Timestamp型
+             isValidTimestamp(data.createdAt);
+    }
+    
+    function isValidClientUpdate(data) {
+      return 
+             // name: 存在する場合は文字列
+             (!('name' in data) || data.name is string) &&
+             // closingDay: 存在する場合は有効な日
+             (!('closingDay' in data) || isValidDayOfMonth(data.closingDay)) &&
+             // paymentMonthOffset: 存在する場合は整数
+             (!('paymentMonthOffset' in data) || data.paymentMonthOffset is int) &&
+             // paymentDay: 存在する場合は有効な日
+             (!('paymentDay' in data) || isValidDayOfMonth(data.paymentDay)) &&
+             // sortOrder: 存在する場合は整数
+             (!('sortOrder' in data) || data.sortOrder is int) &&
+             // イミュータブルフィールドの保護
+             immutableFieldsProtected();
+    }
+    
+    // =========================================================================
+    // Project スキーマ検証
+    // =========================================================================
+    
+    function isValidProjectCreate(data) {
+      return data.keys().hasAll(['uid', 'clientId', 'title', 'status', 'color', 'createdAt']) &&
+             // uid: 認証uidと一致
+             data.uid == request.auth.uid &&
+             // clientId: 文字列
+             data.clientId is string &&
+             // title: 文字列
+             data.title is string &&
+             // status: 有効なステータス
+             isValidProjectStatus(data.status) &&
+             // color: 有効なカラー
+             isValidProjectColor(data.color) &&
+             // estimatedAmount: 存在する場合は数値形式の文字列
+             (!('estimatedAmount' in data) || isValidDecimalString(data.estimatedAmount)) &&
+             // startDate: Timestamp または null
+             (!('startDate' in data) || isValidTimestampOrNull(data.startDate)) &&
+             // endDate: Timestamp または null
+             (!('endDate' in data) || isValidTimestampOrNull(data.endDate)) &&
+             // startDate <= endDate の整合性チェック
+             isValidDateRange(
+               'startDate' in data ? data.startDate : null,
+               'endDate' in data ? data.endDate : null
+             ) &&
+             // memo: 存在する場合は文字列
+             (!('memo' in data) || data.memo is string) &&
+             // createdAt: Timestamp型
+             isValidTimestamp(data.createdAt) &&
+             // updatedAt: 存在する場合はTimestamp
+             (!('updatedAt' in data) || isValidTimestampOrNull(data.updatedAt));
+    }
+    
+    function isValidProjectUpdate(data) {
+      return 
+             // clientId: 存在する場合は文字列
+             (!('clientId' in data) || data.clientId is string) &&
+             // title: 存在する場合は文字列
+             (!('title' in data) || data.title is string) &&
+             // status: 存在する場合は有効なステータス
+             (!('status' in data) || isValidProjectStatus(data.status)) &&
+             // color: 存在する場合は有効なカラー
+             (!('color' in data) || isValidProjectColor(data.color)) &&
+             // estimatedAmount: 存在する場合は数値形式の文字列
+             (!('estimatedAmount' in data) || isValidDecimalString(data.estimatedAmount)) &&
+             // startDate: Timestamp または null
+             (!('startDate' in data) || isValidTimestampOrNull(data.startDate)) &&
+             // endDate: Timestamp または null
+             (!('endDate' in data) || isValidTimestampOrNull(data.endDate)) &&
+             // startDate <= endDate の整合性チェック（更新時は既存値も考慮）
+             isValidDateRange(
+               'startDate' in request.resource.data ? request.resource.data.startDate : 
+                 ('startDate' in resource.data ? resource.data.startDate : null),
+               'endDate' in request.resource.data ? request.resource.data.endDate : 
+                 ('endDate' in resource.data ? resource.data.endDate : null)
+             ) &&
+             // memo: 存在する場合は文字列
+             (!('memo' in data) || data.memo is string) &&
+             // updatedAt: 存在する場合はTimestamp
+             (!('updatedAt' in data) || isValidTimestampOrNull(data.updatedAt)) &&
+             // イミュータブルフィールドの保護
+             immutableFieldsProtected();
+    }
+    
+    // =========================================================================
+    // RecurringMaster スキーマ検証
+    // =========================================================================
+    
+    function isValidRecurringMasterCreate(data) {
+      return data.keys().hasAll(['uid', 'title', 'baseAmount', 'type', 'frequency', 'dayOfPeriod', 'isActive', 'createdAt']) &&
+             // uid: 認証uidと一致
+             data.uid == request.auth.uid &&
+             // title: 文字列
+             data.title is string &&
+             // baseAmount: 数値形式の文字列
+             isValidDecimalString(data.baseAmount) &&
+             // type: 有効な取引タイプ
+             isValidTransactionType(data.type) &&
+             // frequency: 有効な頻度
+             isValidFrequency(data.frequency) &&
+             // dayOfPeriod: 1-31の整数
+             (data.dayOfPeriod is int && data.dayOfPeriod >= 1 && data.dayOfPeriod <= 31) &&
+             // monthOfYear: yearlyの場合は1-12の整数
+             (data.frequency != 'yearly' || 
+               ('monthOfYear' in data && data.monthOfYear is int && 
+                data.monthOfYear >= 1 && data.monthOfYear <= 12)) &&
+             // isActive: boolean
+             data.isActive is bool &&
+             // clientId: 存在する場合は文字列
+             (!('clientId' in data) || data.clientId is string) &&
+             // categoryId: 存在する場合は文字列
+             (!('categoryId' in data) || data.categoryId is string) &&
+             // memo: 存在する場合は文字列
+             (!('memo' in data) || data.memo is string) &&
+             // startDate: Timestamp または null
+             (!('startDate' in data) || isValidTimestampOrNull(data.startDate)) &&
+             // endDate: Timestamp または null
+             (!('endDate' in data) || isValidTimestampOrNull(data.endDate)) &&
+             // createdAt: Timestamp型
+             isValidTimestamp(data.createdAt) &&
+             // updatedAt: 存在する場合はTimestamp
+             (!('updatedAt' in data) || isValidTimestampOrNull(data.updatedAt));
+    }
+    
+    function isValidRecurringMasterUpdate(data) {
+      return 
+             // title: 存在する場合は文字列
+             (!('title' in data) || data.title is string) &&
+             // baseAmount: 存在する場合は数値形式の文字列
+             (!('baseAmount' in data) || isValidDecimalString(data.baseAmount)) &&
+             // type: 存在する場合は有効な取引タイプ
+             (!('type' in data) || isValidTransactionType(data.type)) &&
+             // frequency: 存在する場合は有効な頻度
+             (!('frequency' in data) || isValidFrequency(data.frequency)) &&
+             // dayOfPeriod: 存在する場合は1-31の整数
+             (!('dayOfPeriod' in data) || 
+               (data.dayOfPeriod is int && data.dayOfPeriod >= 1 && data.dayOfPeriod <= 31)) &&
+             // monthOfYear: 存在する場合は1-12の整数
+             (!('monthOfYear' in data) || 
+               (data.monthOfYear is int && data.monthOfYear >= 1 && data.monthOfYear <= 12)) &&
+             // isActive: 存在する場合はboolean
+             (!('isActive' in data) || data.isActive is bool) &&
+             // clientId: 存在する場合は文字列
+             (!('clientId' in data) || data.clientId is string) &&
+             // categoryId: 存在する場合は文字列
+             (!('categoryId' in data) || data.categoryId is string) &&
+             // memo: 存在する場合は文字列
+             (!('memo' in data) || data.memo is string) &&
+             // startDate: Timestamp または null
+             (!('startDate' in data) || isValidTimestampOrNull(data.startDate)) &&
+             // endDate: Timestamp または null
+             (!('endDate' in data) || isValidTimestampOrNull(data.endDate)) &&
+             // updatedAt: 存在する場合はTimestamp
+             (!('updatedAt' in data) || isValidTimestampOrNull(data.updatedAt)) &&
+             // イミュータブルフィールドの保護
+             immutableFieldsProtected();
+    }
+    
+    // =========================================================================
+    // Category スキーマ検証
+    // =========================================================================
+    
+    function isValidCategoryCreate(data) {
+      return data.keys().hasAll(['uid', 'name', 'type']) &&
+             // uid: 認証uidと一致
+             data.uid == request.auth.uid &&
+             // name: 文字列
+             data.name is string &&
+             // type: 有効な取引タイプ
+             isValidTransactionType(data.type) &&
+             // color: 存在する場合は文字列
+             (!('color' in data) || data.color is string) &&
+             // icon: 存在する場合は文字列
+             (!('icon' in data) || data.icon is string);
+    }
+    
+    function isValidCategoryUpdate(data) {
+      return 
+             // name: 存在する場合は文字列
+             (!('name' in data) || data.name is string) &&
+             // type: 存在する場合は有効な取引タイプ
+             (!('type' in data) || isValidTransactionType(data.type)) &&
+             // color: 存在する場合は文字列
+             (!('color' in data) || data.color is string) &&
+             // icon: 存在する場合は文字列
+             (!('icon' in data) || data.icon is string) &&
+             // イミュータブルフィールドの保護
+             uidUnchanged();
+    }
+    
+    // =========================================================================
+    // ルール定義: ユーザードキュメント
+    // =========================================================================
+    
     match /users/{userId} {
-      // 認証済み + 自分のデータのみ読み書き可能
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      // 認証済み + 自分のドキュメントのみ読み書き可能
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId);
+      allow delete: if isOwner(userId);
       
+      // -----------------------------------------------------------------------
       // 取引サブコレクション
+      // -----------------------------------------------------------------------
       match /transactions/{transactionId} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
+        // 読み取り: 所有者のみ
+        allow read: if isOwner(userId);
+        
+        // 作成: 所有者 + スキーマ検証
+        allow create: if isOwner(userId) && 
+                         isValidTransactionCreate(request.resource.data);
+        
+        // 更新: 所有者 + スキーマ検証 + イミュータブル保護
+        allow update: if isOwner(userId) && 
+                         isValidTransactionUpdate(request.resource.data);
+        
+        // 削除: 所有者のみ
+        allow delete: if isOwner(userId);
       }
       
+      // -----------------------------------------------------------------------
       // 取引先サブコレクション
+      // -----------------------------------------------------------------------
       match /clients/{clientId} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
+        allow read: if isOwner(userId);
+        
+        allow create: if isOwner(userId) && 
+                         isValidClientCreate(request.resource.data);
+        
+        allow update: if isOwner(userId) && 
+                         isValidClientUpdate(request.resource.data);
+        
+        allow delete: if isOwner(userId);
       }
       
-      // カテゴリサブコレクション（将来用）
-      match /categories/{categoryId} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
-      }
-      
-      // 定期取引マスタサブコレクション
-      match /recurring_masters/{masterId} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
-      }
-      
+      // -----------------------------------------------------------------------
       // 案件サブコレクション
+      // -----------------------------------------------------------------------
       match /projects/{projectId} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
+        allow read: if isOwner(userId);
+        
+        allow create: if isOwner(userId) && 
+                         isValidProjectCreate(request.resource.data);
+        
+        allow update: if isOwner(userId) && 
+                         isValidProjectUpdate(request.resource.data);
+        
+        allow delete: if isOwner(userId);
+      }
+      
+      // -----------------------------------------------------------------------
+      // 定期取引マスタサブコレクション
+      // -----------------------------------------------------------------------
+      match /recurring_masters/{masterId} {
+        allow read: if isOwner(userId);
+        
+        allow create: if isOwner(userId) && 
+                         isValidRecurringMasterCreate(request.resource.data);
+        
+        allow update: if isOwner(userId) && 
+                         isValidRecurringMasterUpdate(request.resource.data);
+        
+        allow delete: if isOwner(userId);
+      }
+      
+      // -----------------------------------------------------------------------
+      // カテゴリサブコレクション（将来用）
+      // -----------------------------------------------------------------------
+      match /categories/{categoryId} {
+        allow read: if isOwner(userId);
+        
+        allow create: if isOwner(userId) && 
+                         isValidCategoryCreate(request.resource.data);
+        
+        allow update: if isOwner(userId) && 
+                         isValidCategoryUpdate(request.resource.data);
+        
+        allow delete: if isOwner(userId);
       }
     }
     
-    // デフォルト: 全てのアクセスを拒否
+    // =========================================================================
+    // デフォルトルール: 明示的に許可されていない全てのアクセスを拒否
+    // =========================================================================
     match /{document=**} {
       allow read, write: if false;
     }
