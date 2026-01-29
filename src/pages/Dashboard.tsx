@@ -11,6 +11,7 @@ import { ToggleSwitch } from '../components/ui';
 import { useAppStore } from '../stores/appStore';
 import { useTransactions, useClients, type CreateTransactionInput, type CreateClientInput } from '../hooks';
 import RecurringSettings from './RecurringSettings';
+import SettingsPage from './SettingsPage';
 import { mapTransactionsForCalendar } from '../lib/transactionHelpers';
 import Decimal from 'decimal.js';
 
@@ -28,6 +29,8 @@ export default function Dashboard() {
     const [transactionClient, setTransactionClient] = useState<any>(null);
     const [editingTransaction, setEditingTransaction] = useState<any>(null);
     const [showRecurringSettings, setShowRecurringSettings] = useState(false);
+    const [showSettings, setShowSettings] = useState(false);
+    const [showClientManagement, setShowClientManagement] = useState(false);
 
     // Firestoreからリアルタイムでデータを取得
     const { transactions, loading: transactionsLoading, addTransaction, updateTransaction, deleteTransaction } = useTransactions(user?.uid);
@@ -218,7 +221,7 @@ export default function Dashboard() {
                     rightLabel="入金"
                 />
                 <button
-                    onClick={() => signOut()}
+                    onClick={() => setShowSettings(true)}
                     className="md:hidden p-2 rounded-full hover:bg-surface-light transition-colors"
                 >
                     <Settings className="w-6 h-6 text-gray-400" />
@@ -226,6 +229,67 @@ export default function Dashboard() {
             </div>
         </div>
     );
+
+    // 設定画面からのナビゲーション
+    const handleSettingsNavigate = (page: 'dashboard' | 'report' | 'recurring' | 'clients') => {
+        setShowSettings(false);
+        switch (page) {
+            case 'dashboard':
+                // 既にダッシュボードにいるので何もしない
+                break;
+            case 'recurring':
+                setShowRecurringSettings(true);
+                break;
+            case 'clients':
+                setShowClientManagement(true);
+                break;
+            case 'report':
+                // TODO: レポート画面実装時に追加
+                break;
+        }
+    };
+
+    // 設定画面
+    if (showSettings) {
+        return (
+            <SettingsPage
+                onBack={() => setShowSettings(false)}
+                onNavigate={handleSettingsNavigate}
+            />
+        );
+    }
+
+    // 取引先管理画面
+    if (showClientManagement) {
+        return (
+            <div className="min-h-screen bg-background">
+                <ClientSheet
+                    open={true}
+                    onOpenChange={(open) => {
+                        if (!open) setShowClientManagement(false);
+                    }}
+                    clients={clients}
+                    onSelect={() => { }}
+                    onCreateNew={() => {
+                        setEditingClient(null);
+                        setIsClientFormOpen(true);
+                    }}
+                    onEdit={handleEditClient}
+                    onDelete={handleDeleteClient}
+                    onReorder={handleReorderClients}
+                />
+                <ClientFormSheet
+                    open={isClientFormOpen}
+                    onOpenChange={(open) => {
+                        setIsClientFormOpen(open);
+                        if (!open) setEditingClient(null);
+                    }}
+                    onSubmit={handleCreateClient}
+                    initialClient={editingClient}
+                />
+            </div>
+        );
+    }
 
     // 定期取引設定画面
     if (showRecurringSettings) {
