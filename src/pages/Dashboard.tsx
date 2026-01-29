@@ -5,6 +5,7 @@ import { AppLayout } from '../components/layout/AppLayout';
 import { motion } from 'framer-motion';
 import { useAuth } from '../features/auth';
 import { Calendar, TransactionList } from '../features/calendar';
+import { CalendarContainer } from '../features/dashboard/CalendarContainer';
 import { ClientSheet, ClientFormSheet } from '../features/clients';
 import { TransactionForm } from '../features/transactions';
 import { ToggleSwitch } from '../components/ui';
@@ -285,51 +286,67 @@ export default function Dashboard() {
         <AppLayout sidebar={sidebarContent} header={headerContent}>
             {/* メインコンテンツ */}
             <div className="space-y-6 max-w-5xl mx-auto">
-                {/* カレンダー */}
-                <Calendar
-                    transactions={mapTransactionsForCalendar(transactions, viewMode)}
-                    fullTransactions={transactions}
-                    clients={clients}
-                    onTransactionClick={handleEditTransaction}
-                />
+                {/* モバイル: CalendarContainer（表示切替付） */}
+                <div className="md:hidden">
+                    <CalendarContainer
+                        projects={[]} // TODO: 案件データを追加
+                        transactions={transactions}
+                        clients={clients}
+                        onDateClick={(date) => {
+                            console.log('Date clicked:', date);
+                        }}
+                        onTransactionClick={handleEditTransaction}
+                    />
+                </div>
 
-                {/* トランザクションリスト */}
-                <div className="md:grid md:grid-cols-2 md:gap-6">
-                    <div>
-                        <h2 className="text-gray-400 text-sm font-medium mb-4 px-1 flex items-center gap-2">
-                            <TrendingUp className="w-4 h-4" />
-                            {viewMode === 'accrual' ? '発生予定' : '入出金予定'}
-                            {transactionsLoading && (
-                                <span className="text-xs text-primary-400">読み込み中...</span>
-                            )}
-                        </h2>
-                        <TransactionList
-                            transactions={transactions}
-                            onEdit={handleEditTransaction}
-                            onDelete={handleDeleteTransaction}
-                        />
-                    </div>
-                    {/* PC表示用のサマリー */}
-                    <div className="hidden md:block p-6 bg-surface rounded-2xl border border-white/5 h-fit">
-                        <h3 className="text-lg font-medium text-white mb-4">今月のサマリー</h3>
-                        <div className="space-y-4">
-                            <div className="p-4 bg-surface-light rounded-xl border border-white/5">
-                                <p className="text-sm text-gray-400 mb-1">売上 (発生)</p>
-                                <p className="text-2xl font-bold text-income">
-                                    ¥{incomeTotal.toNumber().toLocaleString()}
-                                </p>
-                            </div>
-                            <div className="p-4 bg-surface-light rounded-xl border border-white/5">
-                                <p className="text-sm text-gray-400 mb-1">支出 (発生)</p>
-                                <p className="text-2xl font-bold text-expense">
-                                    ¥{expenseTotal.toNumber().toLocaleString()}
-                                </p>
-                            </div>
-                            <div className="p-4 bg-primary-500/10 rounded-xl border border-primary-500/20">
-                                <p className="text-sm text-primary-400 mb-1">入金予測 (決済)</p>
-                                <p className="text-2xl font-bold text-white">
-                                    ¥{cashInTotal.toNumber().toLocaleString()}
-                                </p>
+                {/* PC: 従来のカレンダー+リスト+サマリー */}
+                <div className="hidden md:block">
+                    {/* カレンダー */}
+                    <Calendar
+                        transactions={mapTransactionsForCalendar(transactions, viewMode)}
+                        fullTransactions={transactions}
+                        clients={clients}
+                        onTransactionClick={handleEditTransaction}
+                    />
+
+                    {/* トランザクションリスト + PCサマリー */}
+                    <div className="grid grid-cols-2 gap-6 mt-6">
+                        <div>
+                            <h2 className="text-gray-400 text-sm font-medium mb-4 px-1 flex items-center gap-2">
+                                <TrendingUp className="w-4 h-4" />
+                                {viewMode === 'accrual' ? '発生予定' : '入出金予定'}
+                                {transactionsLoading && (
+                                    <span className="text-xs text-primary-400">読み込み中...</span>
+                                )}
+                            </h2>
+                            <TransactionList
+                                transactions={transactions}
+                                onEdit={handleEditTransaction}
+                                onDelete={handleDeleteTransaction}
+                            />
+                        </div>
+                        {/* PC表示用のサマリー */}
+                        <div className="p-6 bg-surface rounded-2xl border border-white/5 h-fit">
+                            <h3 className="text-lg font-medium text-white mb-4">今月のサマリー</h3>
+                            <div className="space-y-4">
+                                <div className="p-4 bg-surface-light rounded-xl border border-white/5">
+                                    <p className="text-sm text-gray-400 mb-1">売上 (発生)</p>
+                                    <p className="text-2xl font-bold text-income">
+                                        ¥{incomeTotal.toNumber().toLocaleString()}
+                                    </p>
+                                </div>
+                                <div className="p-4 bg-surface-light rounded-xl border border-white/5">
+                                    <p className="text-sm text-gray-400 mb-1">支出 (発生)</p>
+                                    <p className="text-2xl font-bold text-expense">
+                                        ¥{expenseTotal.toNumber().toLocaleString()}
+                                    </p>
+                                </div>
+                                <div className="p-4 bg-primary-500/10 rounded-xl border border-primary-500/20">
+                                    <p className="text-sm text-primary-400 mb-1">入金予測 (決済)</p>
+                                    <p className="text-2xl font-bold text-white">
+                                        ¥{cashInTotal.toNumber().toLocaleString()}
+                                    </p>
+                                </div>
                             </div>
                         </div>
                     </div>
