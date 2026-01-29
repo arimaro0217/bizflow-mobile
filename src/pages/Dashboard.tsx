@@ -292,6 +292,7 @@ export default function Dashboard() {
                         projects={[]} // TODO: 案件データを追加
                         transactions={transactions}
                         clients={clients}
+                        calendarTransactions={mapTransactionsForCalendar(transactions, viewMode)}
                         onDateClick={(date) => {
                             console.log('Date clicked:', date);
                         }}
