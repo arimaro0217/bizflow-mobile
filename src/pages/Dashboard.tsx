@@ -12,6 +12,7 @@ import { useAppStore } from '../stores/appStore';
 import { useTransactions, useClients, type CreateTransactionInput, type CreateClientInput } from '../hooks';
 import RecurringSettings from './RecurringSettings';
 import SettingsPage from './SettingsPage';
+import ClientManagementPage from './ClientManagementPage';
 import { mapTransactionsForCalendar } from '../lib/transactionHelpers';
 import Decimal from 'decimal.js';
 
@@ -262,32 +263,14 @@ export default function Dashboard() {
     // 取引先管理画面
     if (showClientManagement) {
         return (
-            <div className="min-h-screen bg-background">
-                <ClientSheet
-                    open={true}
-                    onOpenChange={(open) => {
-                        if (!open) setShowClientManagement(false);
-                    }}
-                    clients={clients}
-                    onSelect={() => { }}
-                    onCreateNew={() => {
-                        setEditingClient(null);
-                        setIsClientFormOpen(true);
-                    }}
-                    onEdit={handleEditClient}
-                    onDelete={handleDeleteClient}
-                    onReorder={handleReorderClients}
-                />
-                <ClientFormSheet
-                    open={isClientFormOpen}
-                    onOpenChange={(open) => {
-                        setIsClientFormOpen(open);
-                        if (!open) setEditingClient(null);
-                    }}
-                    onSubmit={handleCreateClient}
-                    initialClient={editingClient}
-                />
-            </div>
+            <ClientManagementPage
+                onBack={() => setShowClientManagement(false)}
+                clients={clients}
+                onCreateClient={handleCreateClient}
+                onUpdateClient={updateClient}
+                onDeleteClient={handleDeleteClient}
+                onReorderClients={handleReorderClients}
+            />
         );
     }
 
