@@ -208,86 +208,88 @@ export function Keypad({ onConfirm, onCancel, initialValue = '' }: KeypadProps) 
                         {...blockAllEvents}
                     />
 
-                    {/* キーパッド本体 */}
-                    <motion.div
-                        key="keypad-content"
-                        initial={{ y: '100%' }}
-                        animate={{ y: 0 }}
-                        exit={{ y: '100%' }}
-                        transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-                        className="fixed bottom-0 left-0 right-0 bg-surface-dark rounded-t-3xl z-[9999] safe-area-bottom touch-none pointer-events-auto"
-                        onClick={(e) => e.stopPropagation()}
-                        {...blockAllEvents}
-                    >
-                        {/* ハンドル */}
-                        <div className="flex justify-center py-3">
-                            <div className="w-12 h-1.5 bg-gray-600 rounded-full" />
-                        </div>
+                    {/* キーパッドコンテナ */}
+                    <div className="fixed inset-0 z-[9999] flex items-end md:items-center justify-center pointer-events-none">
+                        <motion.div
+                            key="keypad-content"
+                            initial={{ y: '100%' }}
+                            animate={{ y: 0 }}
+                            exit={{ y: '100%' }}
+                            transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+                            className="w-full md:max-w-sm bg-surface-dark rounded-t-3xl md:rounded-2xl pb-safe md:pb-0 pointer-events-auto shadow-2xl overflow-hidden"
+                            onClick={(e) => e.stopPropagation()}
+                            {...blockAllEvents}
+                        >
+                            {/* ハンドル（モバイルのみ） */}
+                            <div className="flex justify-center py-3 md:hidden">
+                                <div className="w-12 h-1.5 bg-gray-600 rounded-full" />
+                            </div>
 
-                        {/* ディスプレイ */}
-                        <div className="px-6 pb-4">
-                            <div className="bg-surface rounded-2xl p-4">
-                                {/* 演算表示 */}
-                                {previousValue !== null && operator && (
-                                    <p className="text-gray-500 text-right text-sm mb-1">
-                                        {formatDisplay(previousValue)} {operator}
+                            {/* ディスプレイ */}
+                            <div className="px-6 pb-4">
+                                <div className="bg-surface rounded-2xl p-4">
+                                    {/* 演算表示 */}
+                                    {previousValue !== null && operator && (
+                                        <p className="text-gray-500 text-right text-sm mb-1">
+                                            {formatDisplay(previousValue)} {operator}
+                                        </p>
+                                    )}
+                                    {/* 現在値 */}
+                                    <p className="text-white text-right text-4xl font-semibold tabular-nums">
+                                        ¥{formatDisplay(displayValue)}
                                     </p>
-                                )}
-                                {/* 現在値 */}
-                                <p className="text-white text-right text-4xl font-semibold tabular-nums">
-                                    ¥{formatDisplay(displayValue)}
-                                </p>
-                            </div>
-                        </div>
-
-                        {/* キーエリア */}
-                        <div className="px-4 pb-4">
-                            <div className="grid grid-cols-4 gap-2">
-                                {keys.flat().map((key) => (
-                                    <KeypadButton
-                                        key={key}
-                                        value={key}
-                                        onPress={() => {
-                                            if (key === 'C') {
-                                                handleClear();
-                                            } else if (['+', '-', '×', '÷'].includes(key)) {
-                                                handleOperator(key as Operator);
-                                            } else {
-                                                handleNumberInput(key);
-                                            }
-                                        }}
-                                        isOperator={['+', '-', '×', '÷'].includes(key)}
-                                        isActive={operator === key && waitingForOperand}
-                                    />
-                                ))}
+                                </div>
                             </div>
 
-                            {/* 下部ボタン */}
-                            <div className="grid grid-cols-3 gap-2 mt-2">
-                                <button
-                                    onClick={handleCancel}
-                                    onTouchStart={(e) => e.stopPropagation()}
-                                    className="h-14 rounded-2xl bg-surface-light text-gray-400 flex items-center justify-center active:scale-95 transition-transform pointer-events-auto"
-                                >
-                                    <X className="w-6 h-6" />
-                                </button>
-                                <button
-                                    onClick={handleBackspace}
-                                    onTouchStart={(e) => e.stopPropagation()}
-                                    className="h-14 rounded-2xl bg-surface-light text-gray-400 flex items-center justify-center active:scale-95 transition-transform pointer-events-auto"
-                                >
-                                    <Delete className="w-6 h-6" />
-                                </button>
-                                <button
-                                    onClick={handleConfirm}
-                                    onTouchStart={(e) => e.stopPropagation()}
-                                    className="h-14 rounded-2xl bg-primary-600 text-white flex items-center justify-center active:scale-95 transition-transform pointer-events-auto"
-                                >
-                                    <Check className="w-6 h-6" />
-                                </button>
+                            {/* キーエリア */}
+                            <div className="px-4 pb-4">
+                                <div className="grid grid-cols-4 gap-2">
+                                    {keys.flat().map((key) => (
+                                        <KeypadButton
+                                            key={key}
+                                            value={key}
+                                            onPress={() => {
+                                                if (key === 'C') {
+                                                    handleClear();
+                                                } else if (['+', '-', '×', '÷'].includes(key)) {
+                                                    handleOperator(key as Operator);
+                                                } else {
+                                                    handleNumberInput(key);
+                                                }
+                                            }}
+                                            isOperator={['+', '-', '×', '÷'].includes(key)}
+                                            isActive={operator === key && waitingForOperand}
+                                        />
+                                    ))}
+                                </div>
+
+                                {/* 下部ボタン */}
+                                <div className="grid grid-cols-3 gap-2 mt-2">
+                                    <button
+                                        onClick={handleCancel}
+                                        onTouchStart={(e) => e.stopPropagation()}
+                                        className="h-14 rounded-2xl bg-surface-light text-gray-400 flex items-center justify-center active:scale-95 transition-transform pointer-events-auto"
+                                    >
+                                        <X className="w-6 h-6" />
+                                    </button>
+                                    <button
+                                        onClick={handleBackspace}
+                                        onTouchStart={(e) => e.stopPropagation()}
+                                        className="h-14 rounded-2xl bg-surface-light text-gray-400 flex items-center justify-center active:scale-95 transition-transform pointer-events-auto"
+                                    >
+                                        <Delete className="w-6 h-6" />
+                                    </button>
+                                    <button
+                                        onClick={handleConfirm}
+                                        onTouchStart={(e) => e.stopPropagation()}
+                                        className="h-14 rounded-2xl bg-primary-600 text-white flex items-center justify-center active:scale-95 transition-transform pointer-events-auto"
+                                    >
+                                        <Check className="w-6 h-6" />
+                                    </button>
+                                </div>
                             </div>
-                        </div>
-                    </motion.div>
+                        </motion.div>
+                    </div>
                 </>
             )}
         </AnimatePresence>,
@@ -326,4 +328,3 @@ function KeypadButton({ value, onPress, isOperator, isActive }: KeypadButtonProp
 }
 
 export default Keypad;
-
