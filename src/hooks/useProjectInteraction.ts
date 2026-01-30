@@ -8,7 +8,7 @@
 // =============================================================================
 
 import { useCallback } from 'react';
-import { writeBatch, doc, serverTimestamp } from 'firebase/firestore';
+import { writeBatch, doc, serverTimestamp, collection, query, where, getDocs } from 'firebase/firestore';
 import { toast } from 'sonner';
 import { db } from '../lib/firebase';
 import { recalculateSettlement, calculateDaysDiff, addDays } from '../utils/financeHelpers';
@@ -206,13 +206,42 @@ export function useProjectInteraction(
                 updatedAt: serverTimestamp(),
             });
 
-            // ステータスがconfirmedになった場合、関連Transactionの見込みフラグを解除
-            if (status === 'confirmed') {
-                // TODO: 関連Transactionのquery & update
-                console.log('案件確定: 見込みフラグを解除');
-            }
-
+            // ステータスに応じてTransactionの見込みフラグを更新
             try {
+                const transactionsRef = collection(db, 'users', uid, 'transactions');
+
+                // 1. 受注/完工 -> 見込み解除
+                if (status === 'confirmed' || status === 'completed') {
+                    const q = query(
+                        transactionsRef,
+                        where('projectId', '==', projectId),
+                        where('isEstimate', '==', true)
+                    );
+                    const snapshot = await getDocs(q);
+                    snapshot.forEach((doc: any) => {
+                        batch.update(doc.ref, {
+                            isEstimate: false,
+                            updatedAt: serverTimestamp()
+                        });
+                    });
+                }
+                // 2. その他 -> 見込みに戻す（未決済のみ）
+                else {
+                    const q = query(
+                        transactionsRef,
+                        where('projectId', '==', projectId),
+                        where('isEstimate', '==', false),
+                        where('isSettled', '==', false)
+                    );
+                    const snapshot = await getDocs(q);
+                    snapshot.forEach((doc: any) => {
+                        batch.update(doc.ref, {
+                            isEstimate: true,
+                            updatedAt: serverTimestamp()
+                        });
+                    });
+                }
+
                 await batch.commit();
                 triggerHaptic(50);
 

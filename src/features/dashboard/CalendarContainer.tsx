@@ -9,7 +9,7 @@
 
 import { useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Briefcase, Wallet, TrendingUp, TrendingDown, RefreshCcw } from 'lucide-react';
+import { Briefcase, Wallet, TrendingUp, TrendingDown } from 'lucide-react';
 import { isSameMonth, startOfMonth } from 'date-fns';
 import { ViewToggle } from '../../components/ui/ViewToggle';
 import { SmartCalendar } from '../calendar/components/SmartCalendar';

@@ -11,6 +11,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { Drawer } from 'vaul';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronLeft, ChevronRight, Check, Calendar, Wallet, Briefcase } from 'lucide-react';
+import { toast } from 'sonner';
 import { useProjectWizard, type WizardStep, STEP_TITLES } from '../hooks/useProjectWizard';
 import { ClientSelectField } from '../../clients/components/ClientSelectField';
 import { cn } from '../../../lib/utils';
@@ -169,6 +170,20 @@ export function ProjectCreateWizard({
                 onOpenChange(false);
             } catch (error) {
                 console.error('案件作成エラー:', error);
+
+                // エラーメッセージの抽出
+                let errorMessage = '不明なエラーが発生しました';
+                if (error instanceof Error) {
+                    errorMessage = error.message;
+                } else if (typeof error === 'string') {
+                    errorMessage = error;
+                }
+
+                toast.error('案件の登録に失敗しました', {
+                    description: errorMessage,
+                    duration: 5000,
+                    closeButton: true,
+                });
             } finally {
                 setIsSubmitting(false);
             }

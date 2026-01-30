@@ -21,6 +21,14 @@ export interface Client {
 export type ProjectStatus = 'draft' | 'confirmed' | 'completed';
 export type ProjectColor = 'blue' | 'orange' | 'green' | 'purple' | 'gray';
 
+export const PROJECT_COLORS: Record<ProjectColor, { bg: string; text: string; border: string }> = {
+    blue: { bg: 'bg-blue-500/80', text: 'text-white', border: 'border-blue-600' },
+    orange: { bg: 'bg-orange-500/80', text: 'text-white', border: 'border-orange-600' },
+    green: { bg: 'bg-emerald-500/80', text: 'text-white', border: 'border-emerald-600' },
+    purple: { bg: 'bg-purple-500/80', text: 'text-white', border: 'border-purple-600' },
+    gray: { bg: 'bg-gray-500/80', text: 'text-white', border: 'border-gray-600' },
+};
+
 export interface Project {
     id: string;
     uid: string;

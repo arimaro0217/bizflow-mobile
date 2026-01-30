@@ -17,6 +17,8 @@ import {
     writeBatch,
     serverTimestamp,
     type Timestamp,
+    where,
+    getDocs,
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { calculateSettlementDate } from '../lib/settlement';
@@ -192,6 +194,20 @@ export function useProjectOperations(uid: string | undefined): UseProjectOperati
                 client.paymentDay        // 支払日
             );
 
+            // 日付計算結果の妥当性チェック
+            if (isNaN(settlementDate.getTime())) {
+                console.error('入金予定日の計算に失敗しました', {
+                    endDate: data.endDate,
+                    clientSetting: {
+                        closing: client.closingDay,
+                        offset: client.paymentMonthOffset,
+                        payment: client.paymentDay
+                    },
+                    result: settlementDate
+                });
+                throw new Error('入金予定日の計算に失敗しました。取引先の設定を確認してください。');
+            }
+
             const transactionRef = doc(transactionsRef);
             const transactionData = {
                 type: 'income' as const,
@@ -283,10 +299,45 @@ export function useProjectOperations(uid: string | undefined): UseProjectOperati
                 updatedAt: serverTimestamp(),
             });
 
-            // ステータスが'completed'になった場合、関連TransactionのisEstimateをfalseに
-            if (status === 'completed') {
-                // TODO: 関連Transactionの更新
-                console.log('案件完了: 見込みフラグを解除');
+            // -----------------------------------------------------------------
+            // 連動するTransactionの更新（確定/未確定の切り替え）
+            // -----------------------------------------------------------------
+            const transactionsRef = collection(db, 'users', uid, 'transactions');
+
+            // 1. `confirmed` (受注) または `completed` (完工) の場合 -> 見込みフラグ解除
+            if (status === 'confirmed' || status === 'completed') {
+                const q = query(
+                    transactionsRef,
+                    where('projectId', '==', id),
+                    where('isEstimate', '==', true)
+                );
+
+                const snapshot = await getDocs(q);
+                snapshot.forEach((docSnap: any) => {
+                    batch.update(docSnap.ref, {
+                        isEstimate: false,
+                        updatedAt: serverTimestamp()
+                    });
+                });
+                console.log(`案件連携: ${snapshot.size}件の入金予定を確定状態に変更しました`);
+            }
+            // 2. それ以外（下書き、失注など）に戻る場合 -> 再度見込みフラグを立てる（未決済のもののみ）
+            else {
+                const q = query(
+                    transactionsRef,
+                    where('projectId', '==', id),
+                    where('isEstimate', '==', false),
+                    where('isSettled', '==', false) // 既に決済済みのものは戻さない
+                );
+
+                const snapshot = await getDocs(q);
+                snapshot.forEach((docSnap: any) => {
+                    batch.update(docSnap.ref, {
+                        isEstimate: true,
+                        updatedAt: serverTimestamp()
+                    });
+                });
+                console.log(`案件連携: ${snapshot.size}件の入金予定を見込み状態に戻しました`);
             }
 
             await batch.commit();

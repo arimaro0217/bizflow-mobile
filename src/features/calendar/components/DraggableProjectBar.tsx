@@ -44,7 +44,7 @@
 import { useDraggable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 import { cn } from '../../../lib/utils';
-import type { Project } from '../../../types';
+import { type Project, PROJECT_COLORS } from '../../../types';
 
 // =============================================================================
 // 型定義
@@ -57,19 +57,14 @@ interface DraggableProjectBarProps {
     isEnd: boolean;
     isDragging?: boolean;  // DragOverlay用
     onClick?: () => void;
+    onResizeStart?: (e: React.PointerEvent) => void;
 }
 
 // =============================================================================
 // カラーマッピング
 // =============================================================================
 
-const PROJECT_COLORS: Record<string, { bg: string; text: string; border: string }> = {
-    blue: { bg: 'bg-blue-500/80', text: 'text-white', border: 'border-blue-600' },
-    orange: { bg: 'bg-orange-500/80', text: 'text-white', border: 'border-orange-600' },
-    green: { bg: 'bg-emerald-500/80', text: 'text-white', border: 'border-emerald-600' },
-    purple: { bg: 'bg-purple-500/80', text: 'text-white', border: 'border-purple-600' },
-    gray: { bg: 'bg-gray-500/80', text: 'text-white', border: 'border-gray-600' },
-};
+// PROJECT_COLORSはtypesへ移動済み
 
 // =============================================================================
 // メインコンポーネント
@@ -82,6 +77,7 @@ export function DraggableProjectBar({
     isEnd,
     isDragging = false,
     onClick,
+    onResizeStart,
 }: DraggableProjectBarProps) {
     // -------------------------------------------------------------------------
     // dnd-kit: useDraggable
@@ -128,18 +124,32 @@ export function DraggableProjectBar({
     // ドラッグ中は元の位置に薄いプレースホルダーを残す
     const placeholderOpacity = isCurrentlyDragging ? 'opacity-30' : '';
 
+    // -------------------------------------------------------------------------
+    // リサイズ処理 (簡易実装: 右端ドラッグ)
+    // -------------------------------------------------------------------------
+    // ※ 本格的なリサイズはdnd-kitのmodifiers等が必要だが、
+    // ここではシンプルに「ハンドル掴んでドラッグ」を独自に実装するか、
+    // または親側で制御するか。
+    // dnd-kitのDraggableと競合しないよう、ハンドル部分でのpointerDownで
+    // dnd-kitのドラッグをキャンセル（stopPropagation）する必要がある。
+
+    // しかし、useDraggableのリスナー（attributes/listeners）がボタン全体に付与されているため、
+    // 子要素でのイベント阻止が少し難しい。
+    // そのため、Activator（ドラッグ開始トリガー）を制限するのが正攻法だが、
+    // ここでは「ハンドル部分は別コンポーネントとして分離」せずに、
+    // ハンドル部分でのイベントを捕捉して、親のドラッグを無効化する。
+
+    // ...一旦、UIのみ追加し、機能実装はSmartCalendar側との連携も含めて検討が必要。
+    // 今回は「SmartCalendarでの実装計画」に基づき、
+    // ハンドルを表示し、それをドラッグした際の処理をここに追加する。
+
     return (
-        <button
+        <div
             ref={setNodeRef}
-            {...attributes}
-            {...listeners}
-            onClick={(e) => {
-                e.stopPropagation();
-                onClick?.();
-            }}
+            style={style}
             className={cn(
-                'absolute left-0 right-0 h-4 text-[10px] font-medium truncate px-1 shadow-sm border-t',
-                'cursor-grab active:cursor-grabbing touch-none',
+                'absolute left-0 right-0 h-4 px-1 shadow-sm border-t group select-none',
+                'touch-none', // iOSでのスクロール防止等
                 colors.bg,
                 colors.text,
                 colors.border,
@@ -147,12 +157,36 @@ export function DraggableProjectBar({
                 marginClass,
                 placeholderOpacity,
                 isDragging && 'shadow-lg scale-105 z-50',
-                'hover:brightness-110 transition-all'
+                !isDragging && 'hover:brightness-110 transition-all'
             )}
-            style={style}
+            {...attributes}
+            {...listeners}
+            onClick={(e) => {
+                e.stopPropagation();
+                if (!isDragging) onClick?.();
+            }}
         >
-            {isStart && project.title}
-        </button>
+            <div className="flex items-center w-full h-full overflow-hidden">
+                <span className="text-[10px] font-medium truncate leading-none">
+                    {isStart && project.title}
+                </span>
+            </div>
+
+            {/* リサイズハンドル (右端) */}
+            {isEnd && !isDragging && (
+                <div
+                    className="absolute right-0 top-0 bottom-0 w-3 cursor-ew-resize flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/10 z-20"
+                    onPointerDown={(e) => {
+                        // dnd-kitのドラッグを阻止
+                        e.stopPropagation();
+                        e.preventDefault();
+                        onResizeStart?.(e);
+                    }}
+                >
+                    <div className="w-0.5 h-2 bg-white/50 rounded-full" />
+                </div>
+            )}
+        </div>
     );
 }
 

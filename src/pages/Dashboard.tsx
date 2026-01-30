@@ -219,28 +219,24 @@ export default function Dashboard() {
         amount: string;
         memo?: string;
     }) => {
-        try {
-            await addProject({
-                clientId: data.clientId,
-                title: data.title,
-                startDate: data.startDate,
-                endDate: data.endDate,
-                color: data.color,
-                estimatedAmount: data.amount,
-                memo: data.memo,
-            }, data.client);
+        // エラーハンドリングは呼び出し元の ProjectCreateWizard で行うため、
+        // ここでは try-catch せず、エラーをそのまま伝播させる。
+        await addProject({
+            clientId: data.clientId,
+            title: data.title,
+            startDate: data.startDate,
+            endDate: data.endDate,
+            color: data.color,
+            estimatedAmount: data.amount,
+            memo: data.memo,
+        }, data.client);
 
-            haptic('success');
-            toast.success('案件を作成しました', {
-                description: '資金繰り予定も自動作成されました',
-                icon: <CheckCircle className="w-5 h-5" />,
-            });
-            setIsProjectWizardOpen(false);
-        } catch (error) {
-            console.error('案件作成失敗:', error);
-            haptic('error');
-            toast.error('案件の作成に失敗しました');
-        }
+        haptic('success');
+        toast.success('案件を作成しました', {
+            description: '資金繰り予定も自動作成されました',
+            icon: <CheckCircle className="w-5 h-5" />,
+        });
+        setIsProjectWizardOpen(false);
     };
 
     // カレンダーの日付クリック時の処理

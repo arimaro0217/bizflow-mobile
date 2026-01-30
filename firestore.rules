@@ -76,6 +76,11 @@ service cloud.firestore {
       return startDate == null || endDate == null || startDate <= endDate;
     }
     
+    // 文字列またはnullかどうかを確認
+    function isValidStringOrNull(value) {
+      return value == null || value is string;
+    }
+
     // =========================================================================
     // イミュータブルフィールドの保護
     // =========================================================================
@@ -101,6 +106,10 @@ service cloud.firestore {
     // Transaction スキーマ検証
     // =========================================================================
     
+    // =========================================================================
+    // Transaction スキーマ検証
+    // =========================================================================
+    
     function isValidTransactionCreate(data) {
       // 必須フィールドの存在確認
       return data.keys().hasAll(['uid', 'type', 'amount', 'createdAt']) &&
@@ -110,24 +119,24 @@ service cloud.firestore {
              isValidTransactionType(data.type) &&
              // amount: 数値形式の文字列
              isValidDecimalString(data.amount) &&
-             // taxRate: 存在する場合は数値形式の文字列
-             (!('taxRate' in data) || isValidDecimalString(data.taxRate)) &&
+             // taxRate: 存在する場合は数値形式の文字列またはnull
+             (!('taxRate' in data) || isValidStringOrNull(data.taxRate)) &&
              // transactionDate: Timestamp または null
              (!('transactionDate' in data) || isValidTimestampOrNull(data.transactionDate)) &&
              // settlementDate: Timestamp または null
              (!('settlementDate' in data) || isValidTimestampOrNull(data.settlementDate)) &&
              // isSettled: boolean
              (!('isSettled' in data) || data.isSettled is bool) &&
-             // clientId: 存在する場合は文字列
-             (!('clientId' in data) || data.clientId is string) &&
-             // categoryId: 存在する場合は文字列
-             (!('categoryId' in data) || data.categoryId is string) &&
-             // projectId: 存在する場合は文字列
-             (!('projectId' in data) || data.projectId is string) &&
-             // memo: 存在する場合は文字列
-             (!('memo' in data) || data.memo is string) &&
-             // recurringMasterId: 存在する場合は文字列
-             (!('recurringMasterId' in data) || data.recurringMasterId is string) &&
+             // clientId: 存在する場合は文字列またはnull
+             (!('clientId' in data) || isValidStringOrNull(data.clientId)) &&
+             // categoryId: 存在する場合は文字列またはnull
+             (!('categoryId' in data) || isValidStringOrNull(data.categoryId)) &&
+             // projectId: 存在する場合は文字列またはnull
+             (!('projectId' in data) || isValidStringOrNull(data.projectId)) &&
+             // memo: 存在する場合は文字列またはnull
+             (!('memo' in data) || isValidStringOrNull(data.memo)) &&
+             // recurringMasterId: 存在する場合は文字列またはnull
+             (!('recurringMasterId' in data) || isValidStringOrNull(data.recurringMasterId)) &&
              // createdAt: Timestamp型
              isValidTimestamp(data.createdAt) &&
              // updatedAt: 存在する場合はTimestamp
@@ -141,24 +150,24 @@ service cloud.firestore {
              (!('type' in data) || isValidTransactionType(data.type)) &&
              // amount: 存在する場合は数値形式の文字列
              (!('amount' in data) || isValidDecimalString(data.amount)) &&
-             // taxRate: 存在する場合は数値形式の文字列
-             (!('taxRate' in data) || isValidDecimalString(data.taxRate)) &&
+             // taxRate: 存在する場合は数値形式の文字列またはnull
+             (!('taxRate' in data) || isValidStringOrNull(data.taxRate)) &&
              // transactionDate: Timestamp または null
              (!('transactionDate' in data) || isValidTimestampOrNull(data.transactionDate)) &&
              // settlementDate: Timestamp または null
              (!('settlementDate' in data) || isValidTimestampOrNull(data.settlementDate)) &&
              // isSettled: boolean
              (!('isSettled' in data) || data.isSettled is bool) &&
-             // clientId: 存在する場合は文字列
-             (!('clientId' in data) || data.clientId is string) &&
-             // categoryId: 存在する場合は文字列
-             (!('categoryId' in data) || data.categoryId is string) &&
-             // projectId: 存在する場合は文字列
-             (!('projectId' in data) || data.projectId is string) &&
-             // memo: 存在する場合は文字列
-             (!('memo' in data) || data.memo is string) &&
-             // recurringMasterId: 存在する場合は文字列
-             (!('recurringMasterId' in data) || data.recurringMasterId is string) &&
+             // clientId: 存在する場合は文字列またはnull
+             (!('clientId' in data) || isValidStringOrNull(data.clientId)) &&
+             // categoryId: 存在する場合は文字列またはnull
+             (!('categoryId' in data) || isValidStringOrNull(data.categoryId)) &&
+             // projectId: 存在する場合は文字列またはnull
+             (!('projectId' in data) || isValidStringOrNull(data.projectId)) &&
+             // memo: 存在する場合は文字列またはnull
+             (!('memo' in data) || isValidStringOrNull(data.memo)) &&
+             // recurringMasterId: 存在する場合は文字列またはnull
+             (!('recurringMasterId' in data) || isValidStringOrNull(data.recurringMasterId)) &&
              // updatedAt: 存在する場合はTimestamp
              (!('updatedAt' in data) || isValidTimestampOrNull(data.updatedAt)) &&
              // イミュータブルフィールドの保護
@@ -230,8 +239,8 @@ service cloud.firestore {
                'startDate' in data ? data.startDate : null,
                'endDate' in data ? data.endDate : null
              ) &&
-             // memo: 存在する場合は文字列
-             (!('memo' in data) || data.memo is string) &&
+             // memo: 存在する場合は文字列またはnull
+             (!('memo' in data) || isValidStringOrNull(data.memo)) &&
              // createdAt: Timestamp型
              isValidTimestamp(data.createdAt) &&
              // updatedAt: 存在する場合はTimestamp
@@ -261,8 +270,8 @@ service cloud.firestore {
                'endDate' in request.resource.data ? request.resource.data.endDate : 
                  ('endDate' in resource.data ? resource.data.endDate : null)
              ) &&
-             // memo: 存在する場合は文字列
-             (!('memo' in data) || data.memo is string) &&
+             // memo: 存在する場合は文字列またはnull
+             (!('memo' in data) || isValidStringOrNull(data.memo)) &&
              // updatedAt: 存在する場合はTimestamp
              (!('updatedAt' in data) || isValidTimestampOrNull(data.updatedAt)) &&
              // イミュータブルフィールドの保護

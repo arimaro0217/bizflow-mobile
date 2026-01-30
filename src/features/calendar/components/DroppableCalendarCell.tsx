@@ -8,37 +8,27 @@
 // =============================================================================
 
 import { useDroppable } from '@dnd-kit/core';
-import { format } from 'date-fns';
 import { cn } from '../../../lib/utils';
 
 // =============================================================================
 // 型定義
 // =============================================================================
 
-interface DroppableCalendarCellProps {
+export interface DroppableCalendarCellProps {
     date: Date;
     dateKey: string;
-    isCurrentMonth: boolean;
-    isToday: boolean;
     children: React.ReactNode;
+    className?: string;
     onClick?: (date: Date) => void;
 }
-
-// =============================================================================
-// メインコンポーネント
-// =============================================================================
 
 export function DroppableCalendarCell({
     date,
     dateKey,
-    isCurrentMonth,
-    isToday,
     children,
+    className,
     onClick,
 }: DroppableCalendarCellProps) {
-    // -------------------------------------------------------------------------
-    // dnd-kit: useDroppable
-    // -------------------------------------------------------------------------
     const {
         setNodeRef,
         isOver,
@@ -52,17 +42,10 @@ export function DroppableCalendarCell({
         },
     });
 
-    // -------------------------------------------------------------------------
-    // スタイル計算
-    // -------------------------------------------------------------------------
-    const dayOfWeek = date.getDay();
-    const isSaturday = dayOfWeek === 6;
-    const isSunday = dayOfWeek === 0;
-
     // ドラッグオーバー中のハイライト
     const isValidDrop = active?.data?.current?.type === 'project';
     const highlightClass = isOver && isValidDrop
-        ? 'bg-primary-500/20 ring-2 ring-primary-400 ring-inset'
+        ? 'bg-primary-500/10 ring-2 ring-primary-500/50 ring-inset z-10'
         : '';
 
     return (
@@ -70,31 +53,11 @@ export function DroppableCalendarCell({
             ref={setNodeRef}
             onClick={() => onClick?.(date)}
             className={cn(
-                'min-h-[80px] md:min-h-[100px] border-b border-r border-white/5 relative cursor-pointer',
-                'hover:bg-surface-light/50 transition-colors',
-                !isCurrentMonth && 'opacity-40',
-                highlightClass
+                'relative', // 親からのスタイルと競合しないよう最低限にするが、SmartCalendar側で制御するため基本はclassNameに任せる
+                highlightClass,
+                className
             )}
         >
-            {/* Zone A: 日付ヘッダー */}
-            <div className="p-1">
-                <span
-                    className={cn(
-                        'inline-flex items-center justify-center w-6 h-6 text-xs font-medium rounded-full',
-                        isToday
-                            ? 'bg-primary-500 text-white'
-                            : isSaturday
-                                ? 'text-blue-400'
-                                : isSunday
-                                    ? 'text-red-400'
-                                    : 'text-gray-300'
-                    )}
-                >
-                    {format(date, 'd')}
-                </span>
-            </div>
-
-            {/* Zone B & C: 子要素（案件バー + 資金繰りドット） */}
             {children}
         </div>
     );

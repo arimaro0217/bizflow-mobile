@@ -24,9 +24,11 @@ export function calculateSettlementDate(
     const txDate = startOfDay(transactionDate);
 
     // 締日を計算（99は月末）
+    const endOfMonth = lastDayOfMonth(txDate).getDate();
+    // 99(月末)ならその月の末日、それ以外なら設定値と末日の小さい方
     const actualClosingDay = closingDay === 99
-        ? lastDayOfMonth(txDate).getDate()
-        : closingDay;
+        ? endOfMonth
+        : Math.min(closingDay, endOfMonth);
 
     // 今月の締日
     let closingDate = setDate(txDate, actualClosingDay);
@@ -34,9 +36,15 @@ export function calculateSettlementDate(
     // 締日を過ぎていたら翌月の締日
     if (isAfter(txDate, closingDate)) {
         closingDate = addMonths(closingDate, 1);
-        // 月末締の場合は月末日を再計算
+
+        // 翌月の末日チェック
+        const nextMonthEnd = lastDayOfMonth(closingDate).getDate();
         if (closingDay === 99) {
             closingDate = lastDayOfMonth(closingDate);
+        } else {
+            // 翌月でも日付が存在しない場合（例: 1/31締め -> 2/28締め）の調整
+            const nextClosingDay = Math.min(closingDay, nextMonthEnd);
+            closingDate = setDate(closingDate, nextClosingDay);
         }
     }
 
