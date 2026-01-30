@@ -1,4 +1,5 @@
 import { useRegisterSW } from 'virtual:pwa-register/react';
+import { useState } from 'react';
 
 /**
  * PWA更新通知コンポーネント
@@ -24,8 +25,16 @@ export function ReloadPrompt() {
         },
     });
 
-    const handleUpdate = () => {
-        updateServiceWorker(true);
+    const [updating, setUpdating] = useState(false);
+
+    const handleUpdate = async () => {
+        setUpdating(true);
+        try {
+            await updateServiceWorker(true);
+        } catch (error) {
+            console.error('Failed to update service worker:', error);
+            setUpdating(false);
+        }
     };
 
     const handleClose = () => {
@@ -66,8 +75,9 @@ export function ReloadPrompt() {
                         type="button"
                         className="reload-prompt__button reload-prompt__button--primary"
                         onClick={handleUpdate}
+                        disabled={updating}
                     >
-                        更新する
+                        {updating ? '更新中...' : '更新する'}
                     </button>
                     <button
                         type="button"

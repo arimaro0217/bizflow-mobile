@@ -104,3 +104,18 @@ export interface UserSettings {
 }
 
 
+
+// フォームデータ用型定義
+export type ClientFormData = Omit<Client, 'id' | 'uid' | 'createdAt'>;
+
+export interface TransactionFormData {
+    type: 'income' | 'expense';
+    amount: string;
+    transactionDate: Date | null;
+    taxRate?: string;
+    settlementDate?: Date | null; // 自動計算されるが、手動上書きも可能
+    isSettled?: boolean;
+    clientId?: string;
+    categoryId?: string;
+    memo?: string;
+}

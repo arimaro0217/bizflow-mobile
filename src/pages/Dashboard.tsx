@@ -1,38 +1,46 @@
 import { useState } from 'react';
 import { isSameMonth } from 'date-fns';
-import { Plus, Settings, Wallet, LayoutDashboard, LogOut, TrendingUp, PieChart, Repeat } from 'lucide-react';
+import { Plus, Settings, Wallet, LayoutDashboard, LogOut, TrendingUp, PieChart, Repeat, CheckCircle, AlertCircle } from 'lucide-react';
 import { AppLayout } from '../components/layout/AppLayout';
 import { motion } from 'framer-motion';
 import { useAuth } from '../features/auth';
-import { Calendar, TransactionList } from '../features/calendar';
+import { TransactionList } from '../features/calendar';
 import { CalendarContainer } from '../features/dashboard/CalendarContainer';
 import { ClientSheet, ClientFormSheet } from '../features/clients';
 import { TransactionForm } from '../features/transactions';
-import { ToggleSwitch } from '../components/ui';
+import { ToggleSwitch, Skeleton, ConfirmDrawer } from '../components/ui';
 import { useAppStore } from '../stores/appStore';
-import { useTransactions, useClients, type CreateTransactionInput, type CreateClientInput } from '../hooks';
+import { ProjectCreateWizard } from '../features/projects/components/ProjectCreateWizard';
+import { useTransactions, useClients, type CreateTransactionInput, type CreateClientInput, useHaptic, useProjects } from '../hooks';
+import type { Client, Transaction, ClientFormData, TransactionFormData, ProjectColor } from '../types';
 import RecurringSettings from './RecurringSettings';
 import SettingsPage from './SettingsPage';
 import ClientManagementPage from './ClientManagementPage';
 import { mapTransactionsForCalendar } from '../lib/transactionHelpers';
 import Decimal from 'decimal.js';
+import { toast } from 'sonner';
 
 export default function Dashboard() {
     const { user, signOut } = useAuth();
     const {
         viewMode,
         toggleViewMode,
-        selectedDate
+        selectedDate,
+        setSelectedDate,
     } = useAppStore();
+    const { trigger: haptic } = useHaptic();
 
     const [isClientSheetOpen, setIsClientSheetOpen] = useState(false);
     const [isClientFormOpen, setIsClientFormOpen] = useState(false);
     const [isTransactionFormOpen, setIsTransactionFormOpen] = useState(false);
-    const [transactionClient, setTransactionClient] = useState<any>(null);
-    const [editingTransaction, setEditingTransaction] = useState<any>(null);
+    const [transactionClient, setTransactionClient] = useState<Client | null>(null);
+    const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
     const [showRecurringSettings, setShowRecurringSettings] = useState(false);
     const [showSettings, setShowSettings] = useState(false);
     const [showClientManagement, setShowClientManagement] = useState(false);
+    const [isProjectWizardOpen, setIsProjectWizardOpen] = useState(false);
+    const [transactionToDelete, setTransactionToDelete] = useState<Transaction | null>(null);
+    const [clientToDelete, setClientToDelete] = useState<Client | null>(null);
 
     // 取引フォーム用の初期日付ステート
     const [formInitialDate, setFormInitialDate] = useState(new Date());
@@ -40,43 +48,61 @@ export default function Dashboard() {
     // Firestoreからリアルタイムでデータを取得
     const { transactions, loading: transactionsLoading, addTransaction, updateTransaction, deleteTransaction } = useTransactions(user?.uid);
     const { clients, addClient, updateClient, deleteClient, updateClientsOrder } = useClients(user?.uid);
-    const [editingClient, setEditingClient] = useState<any>(null);
+    const { projects, addProject } = useProjects(user?.uid);
+    const [editingClient, setEditingClient] = useState<Client | null>(null);
 
-    const handleFormSubmit = async (data: any) => {
+    const handleFormSubmit = async (data: TransactionFormData) => {
         try {
             const input: CreateTransactionInput = {
                 type: data.type,
                 amount: data.amount,
                 taxRate: data.taxRate || '0.1',
-                transactionDate: data.transactionDate,
-                settlementDate: data.settlementDate,
+                transactionDate: data.transactionDate ?? new Date(),
+                settlementDate: data.settlementDate ?? null,
                 isSettled: data.isSettled || false,
                 // Firestore は undefined をサポートしないため、undefined の場合は除外
                 ...(data.clientId && { clientId: data.clientId }),
                 ...(data.memo && { memo: data.memo }),
             };
 
-            if (editingTransaction) {
-                await updateTransaction(editingTransaction.id, input);
-                console.log('取引を更新しました');
-            } else {
-                await addTransaction(input);
-                console.log('取引を保存しました');
-            }
+
+
+            const promise = editingTransaction
+                ? updateTransaction(editingTransaction.id, input)
+                : addTransaction(input);
+
+            // 非同期でエラーハンドリング
+            promise.catch((error) => {
+                console.error('取引の保存に失敗:', error);
+                haptic('error');
+                toast.error('保存に失敗しました', {
+                    description: '変更が反映されませんでした',
+                    icon: <AlertCircle className="w-5 h-5" />,
+                });
+            });
+
+            // 即座に成功扱いとしてUIを閉じる
+            haptic('success');
+            toast.success(editingTransaction ? '取引を更新しました' : '取引を保存しました', {
+                description: '変更内容は即座に反映されます',
+                icon: <CheckCircle className="w-5 h-5" />,
+            });
 
             setTransactionClient(null); // Reset client selection
             setEditingTransaction(null); // Reset editing state
             setIsTransactionFormOpen(false); // Close form explicitly
         } catch (error) {
-            console.error('取引の保存に失敗:', error);
+            // 同期的なエラー（入力構築時など）
+            console.error('処理エラー:', error);
+            toast.error('エラーが発生しました');
         }
     };
 
-    const handleEditTransaction = (transaction: any) => {
+    const handleEditTransaction = (transaction: Transaction) => {
         setEditingTransaction(transaction);
         // クライアント情報を復元
         if (transaction.clientId && clients.length > 0) {
-            const client = clients.find((c: any) => c.id === transaction.clientId);
+            const client = clients.find((c: Client) => c.id === transaction.clientId);
             setTransactionClient(client || null);
         } else {
             setTransactionClient(null);
@@ -84,28 +110,44 @@ export default function Dashboard() {
         setIsTransactionFormOpen(true);
     };
 
-    const handleDeleteTransaction = async (transaction: any) => {
-        if (window.confirm('この取引を削除してもよろしいですか？')) {
-            try {
-                await deleteTransaction(transaction.id);
-                console.log('取引を削除しました');
-            } catch (error) {
-                console.error('削除に失敗しました:', error);
-            }
-        }
+    const handleDeleteTransaction = async (transaction: Transaction) => {
+        // 確認ドロワーを表示
+        setTransactionToDelete(transaction);
     };
 
-    const handleCreateClient = async (data: any) => {
+    const executeDeleteTransaction = async () => {
+        if (!transactionToDelete) return;
+
+        // ノンブロッキング実行
+        deleteTransaction(transactionToDelete.id).catch((error) => {
+            console.error('削除に失敗しました:', error);
+            haptic('error');
+            toast.error('削除に失敗しました');
+        });
+
+        // 即座にUI更新
+        haptic('success');
+        toast.success('取引を削除しました', {
+            icon: <CheckCircle className="w-5 h-5" />,
+        });
+        setTransactionToDelete(null);
+    };
+
+    const handleCreateClient = async (data: ClientFormData) => {
         try {
             if (editingClient) {
                 // 編集モード
-                await updateClient(editingClient.id, {
+                updateClient(editingClient.id, {
                     name: data.name,
                     closingDay: data.closingDay,
                     paymentMonthOffset: data.paymentMonthOffset,
                     paymentDay: data.paymentDay,
+                }).catch((error) => {
+                    console.error('取引先の更新に失敗:', error);
+                    toast.error('取引先の更新に失敗しました');
                 });
-                console.log('取引先を更新しました');
+
+                toast.success('取引先を更新しました');
                 setEditingClient(null);
             } else {
                 // 新規作成モード
@@ -116,46 +158,98 @@ export default function Dashboard() {
                     paymentDay: data.paymentDay,
                     sortOrder: clients.length, // 末尾に追加
                 };
-                await addClient(input);
-                console.log('取引先を保存しました');
+                addClient(input).catch((error) => {
+                    console.error('取引先の保存に失敗:', error);
+                    toast.error('取引先の保存に失敗しました');
+                });
+
+                toast.success('取引先を保存しました');
             }
         } catch (error) {
-            console.error('取引先の保存に失敗:', error);
+            console.error('処理エラー:', error);
         }
     };
 
-    const handleEditClient = (client: any) => {
+    const handleEditClient = (client: Client) => {
         setEditingClient(client);
         setIsClientSheetOpen(false);
         setTimeout(() => setIsClientFormOpen(true), 200);
     };
 
-    const handleDeleteClient = async (client: any) => {
-        if (window.confirm(`「${client.name}」を削除しますか？`)) {
-            try {
-                await deleteClient(client.id);
-                console.log('取引先を削除しました');
-            } catch (error) {
-                console.error('削除に失敗:', error);
-            }
-        }
+    const handleDeleteClient = async (client: Client) => {
+        setClientToDelete(client);
+    };
+
+    const executeDeleteClient = async () => {
+        if (!clientToDelete) return;
+        // ノンブロッキング実行
+        deleteClient(clientToDelete.id).catch((error) => {
+            console.error('削除に失敗:', error);
+            haptic('error');
+            toast.error('削除に失敗しました', {
+                icon: <AlertCircle className="w-5 h-5" />,
+            });
+        });
+
+        // 即座にUI更新
+        haptic('success');
+        toast.success('取引先を削除しました', {
+            icon: <CheckCircle className="w-5 h-5" />,
+        });
+        setClientToDelete(null);
     };
 
     const handleReorderClients = async (orderedIds: string[]) => {
-        try {
-            await updateClientsOrder(orderedIds);
-            console.log('取引先の順序を更新しました');
-        } catch (error) {
+        updateClientsOrder(orderedIds).catch((error) => {
             console.error('順序の更新に失敗:', error);
+            toast.error('並び替えの保存に失敗しました');
+        });
+        // 並び替えはUI側でReact stateとして即座に反映済み（Reorderコンポーネント内）なので
+        // ここでは追加のUI更新は不要だが、エラーハンドリングだけしておく
+    };
+
+    // 案件作成
+    const handleCreateProject = async (data: {
+        clientId: string;
+        client: Client;
+        title: string;
+        color: ProjectColor;
+        startDate: Date;
+        endDate: Date;
+        amount: string;
+        memo?: string;
+    }) => {
+        try {
+            await addProject({
+                clientId: data.clientId,
+                title: data.title,
+                startDate: data.startDate,
+                endDate: data.endDate,
+                color: data.color,
+                estimatedAmount: data.amount,
+                memo: data.memo,
+            }, data.client);
+
+            haptic('success');
+            toast.success('案件を作成しました', {
+                description: '資金繰り予定も自動作成されました',
+                icon: <CheckCircle className="w-5 h-5" />,
+            });
+            setIsProjectWizardOpen(false);
+        } catch (error) {
+            console.error('案件作成失敗:', error);
+            haptic('error');
+            toast.error('案件の作成に失敗しました');
         }
     };
 
     // カレンダーの日付クリック時の処理
     const handleDateClick = (date: Date) => {
-        setFormInitialDate(date);
-        setEditingTransaction(null);
-        setTransactionClient(null);
-        setIsTransactionFormOpen(true);
+        setSelectedDate(date);
+        // setFormInitialDate(date);
+        // setEditingTransaction(null);
+        // setTransactionClient(null);
+        // setIsTransactionFormOpen(true);
     };
 
     // サマリー計算
@@ -297,27 +391,18 @@ export default function Dashboard() {
         <AppLayout sidebar={sidebarContent} header={headerContent}>
             {/* メインコンテンツ */}
             <div className="space-y-6 max-w-5xl mx-auto">
-                {/* モバイル: CalendarContainer（表示切替付） */}
-                <div className="md:hidden">
-                    <CalendarContainer
-                        projects={[]} // TODO: 案件データを追加
-                        transactions={transactions}
-                        clients={clients}
-                        calendarTransactions={mapTransactionsForCalendar(transactions, viewMode)}
-                        onDateClick={handleDateClick}
-                        onTransactionClick={handleEditTransaction}
-                    />
-                </div>
+                {/* すべての画面サイズで CalendarContainer を使用（週/月切り替え付） */}
+                <CalendarContainer
+                    projects={projects}
+                    transactions={transactions}
+                    clients={clients}
+                    calendarTransactions={mapTransactionsForCalendar(transactions, viewMode)}
+                    onDateClick={handleDateClick}
+                    onTransactionClick={handleEditTransaction}
+                />
 
-                {/* PC: 従来のカレンダー+リスト+サマリー */}
+                {/* PC: リスト+サマリー */}
                 <div className="hidden md:block">
-                    {/* カレンダー */}
-                    <Calendar
-                        transactions={mapTransactionsForCalendar(transactions, viewMode)}
-                        fullTransactions={transactions}
-                        clients={clients}
-                        onTransactionClick={handleEditTransaction}
-                    />
 
                     {/* トランザクションリスト + PCサマリー */}
                     <div className="grid grid-cols-2 gap-6 mt-6">
@@ -331,6 +416,7 @@ export default function Dashboard() {
                             </h2>
                             <TransactionList
                                 transactions={transactions}
+                                loading={transactionsLoading}
                                 onEdit={handleEditTransaction}
                                 onDelete={handleDeleteTransaction}
                             />
@@ -339,24 +425,34 @@ export default function Dashboard() {
                         <div className="p-6 bg-surface rounded-2xl border border-white/5 h-fit">
                             <h3 className="text-lg font-medium text-white mb-4">今月のサマリー</h3>
                             <div className="space-y-4">
-                                <div className="p-4 bg-surface-light rounded-xl border border-white/5">
-                                    <p className="text-sm text-gray-400 mb-1">売上 (発生)</p>
-                                    <p className="text-2xl font-bold text-income">
-                                        ¥{incomeTotal.toNumber().toLocaleString()}
-                                    </p>
-                                </div>
-                                <div className="p-4 bg-surface-light rounded-xl border border-white/5">
-                                    <p className="text-sm text-gray-400 mb-1">支出 (発生)</p>
-                                    <p className="text-2xl font-bold text-expense">
-                                        ¥{expenseTotal.toNumber().toLocaleString()}
-                                    </p>
-                                </div>
-                                <div className="p-4 bg-primary-500/10 rounded-xl border border-primary-500/20">
-                                    <p className="text-sm text-primary-400 mb-1">入金予測 (決済)</p>
-                                    <p className="text-2xl font-bold text-white">
-                                        ¥{cashInTotal.toNumber().toLocaleString()}
-                                    </p>
-                                </div>
+                                {transactionsLoading ? (
+                                    <>
+                                        <Skeleton className="h-20 w-full rounded-xl" />
+                                        <Skeleton className="h-20 w-full rounded-xl" />
+                                        <Skeleton className="h-20 w-full rounded-xl" />
+                                    </>
+                                ) : (
+                                    <>
+                                        <div className="p-4 bg-surface-light rounded-xl border border-white/5">
+                                            <p className="text-sm text-gray-400 mb-1">売上 (発生)</p>
+                                            <p className="text-2xl font-bold text-income">
+                                                ¥{incomeTotal.toNumber().toLocaleString()}
+                                            </p>
+                                        </div>
+                                        <div className="p-4 bg-surface-light rounded-xl border border-white/5">
+                                            <p className="text-sm text-gray-400 mb-1">支出 (発生)</p>
+                                            <p className="text-2xl font-bold text-expense">
+                                                ¥{expenseTotal.toNumber().toLocaleString()}
+                                            </p>
+                                        </div>
+                                        <div className="p-4 bg-primary-500/10 rounded-xl border border-primary-500/20">
+                                            <p className="text-sm text-primary-400 mb-1">入金予測 (決済)</p>
+                                            <p className="text-2xl font-bold text-white">
+                                                ¥{cashInTotal.toNumber().toLocaleString()}
+                                            </p>
+                                        </div>
+                                    </>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -367,15 +463,35 @@ export default function Dashboard() {
             <motion.button
                 whileTap={{ scale: 0.9 }}
                 onClick={() => {
-                    setFormInitialDate(new Date()); // 今日の日付で初期化、または selectedDate でも可
-                    setEditingTransaction(null);
-                    setTransactionClient(null);
-                    setIsTransactionFormOpen(true);
+                    if (viewMode === 'project') {
+                        setIsProjectWizardOpen(true);
+                    } else {
+                        // 編集ではなく新規作成なのでClient情報などはクリアして、
+                        // カレンダーで選択されている日付を初期値としてセット
+                        setFormInitialDate(selectedDate);
+                        setEditingTransaction(null);
+                        setTransactionClient(null);
+                        setIsTransactionFormOpen(true);
+                    }
                 }}
                 className="fixed bottom-6 right-6 md:bottom-10 md:right-10 w-14 h-14 bg-primary-500 hover:bg-primary-600 rounded-full shadow-lg shadow-primary-500/30 flex items-center justify-center text-white z-20 transition-colors"
             >
                 <Plus className="w-8 h-8" />
             </motion.button>
+
+            {/* Project Wizard */}
+            <ProjectCreateWizard
+                open={isProjectWizardOpen}
+                onOpenChange={setIsProjectWizardOpen}
+                clients={clients}
+                initialDate={selectedDate} // 選択中の日付を初期値に
+                onSubmit={handleCreateProject}
+                onCreateClient={() => {
+                    setIsProjectWizardOpen(false);
+                    // 少し待ってから開く（ドロワー被り防止）
+                    setTimeout(() => setIsClientFormOpen(true), 300);
+                }}
+            />
 
             {/* Sheets */}
             <TransactionForm
@@ -420,7 +536,27 @@ export default function Dashboard() {
                     if (!open) setEditingClient(null);
                 }}
                 onSubmit={handleCreateClient}
-                initialClient={editingClient}
+
+            />
+
+            <ConfirmDrawer
+                open={!!transactionToDelete}
+                onOpenChange={(open) => !open && setTransactionToDelete(null)}
+                title="取引を削除しますか？"
+                description="この操作は取り消せません。本当に削除してもよろしいですか？"
+                confirmLabel="削除する"
+                variant="destructive"
+                onConfirm={executeDeleteTransaction}
+            />
+
+            <ConfirmDrawer
+                open={!!clientToDelete}
+                onOpenChange={(open) => !open && setClientToDelete(null)}
+                title={`「${clientToDelete?.name}」を削除しますか？`}
+                description="この取引先に紐づく未消込のトランザクションも同時に削除される可能性があります。"
+                confirmLabel="削除する"
+                variant="destructive"
+                onConfirm={executeDeleteClient}
             />
         </AppLayout>
     );

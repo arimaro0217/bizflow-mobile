@@ -34,9 +34,30 @@ a,
 }
 
 /* バウンススクロールの制御 */
-html,
+html {
+  overscroll-behavior-y: none;
+  /* 全体のバウンスを無効化 */
+  height: 100%;
+  overflow: hidden;
+  /* コンテンツエリア以外でのスクロールを禁止 */
+}
+
 body {
-  overscroll-behavior-y: contain;
+  overscroll-behavior-y: none;
+  height: 100%;
+  overflow-y: auto;
+  /* body内でスクロールを許可 */
+  -webkit-overflow-scrolling: touch;
+}
+
+/* iOS Safariでの入力時の自動ズームを防止 (フォントサイズ16px以上にする) */
+@media screen and (max-width: 768px) {
+
+  input,
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
 }
 
 :root {

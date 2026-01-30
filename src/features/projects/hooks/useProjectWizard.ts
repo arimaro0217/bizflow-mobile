@@ -31,6 +31,15 @@ export const projectWizardSchema = z.object({
     // Step 3: How Much
     amount: z.string().min(1, '金額を入力してください'),
     memo: z.string().optional(),
+}).refine((data) => {
+    // 終了日は開始日以降であること
+    if (data.startDate && data.endDate) {
+        return data.endDate >= data.startDate;
+    }
+    return true;
+}, {
+    message: "終了日は開始日以降の日付にしてください",
+    path: ["endDate"],
 });
 
 export type ProjectWizardFormData = z.infer<typeof projectWizardSchema>;
@@ -111,6 +120,15 @@ export function useProjectWizard(
     const { watch, trigger, reset } = form;
 
     // -------------------------------------------------------------------------
+    // Haptic Feedback
+    // -------------------------------------------------------------------------
+    const triggerHaptic = useCallback(() => {
+        if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+            navigator.vibrate(10); // 10ms の微細な振動
+        }
+    }, []);
+
+    // -------------------------------------------------------------------------
     // ステップ別のフィールド定義
     // -------------------------------------------------------------------------
     const stepFields: Record<WizardStep, (keyof ProjectWizardFormData)[]> = {
@@ -158,7 +176,7 @@ export function useProjectWizard(
         }
 
         return true; // 最終ステップ
-    }, [currentStep, trigger, stepFields]);
+    }, [currentStep, trigger, stepFields, triggerHaptic]);
 
     const goToPrevStep = useCallback(() => {
         if (currentStep > 1) {
@@ -197,17 +215,8 @@ export function useProjectWizard(
                 formattedDate,
             };
         },
-        []
+        [triggerHaptic]
     );
-
-    // -------------------------------------------------------------------------
-    // Haptic Feedback
-    // -------------------------------------------------------------------------
-    const triggerHaptic = useCallback(() => {
-        if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
-            navigator.vibrate(10); // 10ms の微細な振動
-        }
-    }, []);
 
     // -------------------------------------------------------------------------
     // ウィザードリセット

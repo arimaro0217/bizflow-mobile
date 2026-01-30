@@ -339,7 +339,12 @@ export function ClientFormSheet({ open, onOpenChange, onSubmit, initialClient = 
         <Drawer.Root open={open} onOpenChange={onOpenChange}>
             <Drawer.Portal>
                 <Drawer.Overlay className="fixed inset-0 bg-black/50 z-40" />
-                <Drawer.Content className="fixed bottom-0 left-0 right-0 z-50 outline-none">
+                <Drawer.Content
+                    className="fixed bottom-0 left-0 right-0 z-50 outline-none"
+                    onClick={(e) => e.stopPropagation()}
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onTouchStart={(e) => e.stopPropagation()}
+                >
                     <div className="bg-surface-dark rounded-t-3xl max-h-[85vh] flex flex-col">
                         {/* ハンドル */}
                         <div className="flex justify-center py-3">

@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-export type ViewMode = 'accrual' | 'cash';
+export type ViewMode = 'accrual' | 'cash' | 'project';
 
 interface AppState {
     // 表示モード
@@ -38,11 +38,13 @@ export const useAppStore = create<AppState>()(
     persist(
         (set) => ({
             // 表示モード
-            viewMode: 'accrual',
+            viewMode: 'cash',
             setViewMode: (mode) => set({ viewMode: mode }),
-            toggleViewMode: () => set((state) => ({
-                viewMode: state.viewMode === 'accrual' ? 'cash' : 'accrual'
-            })),
+            toggleViewMode: () => set((state) => {
+                const modes: ViewMode[] = ['cash', 'project', 'accrual'];
+                const currentIdx = modes.indexOf(state.viewMode);
+                return { viewMode: modes[(currentIdx + 1) % modes.length] };
+            }),
 
             // 選択日
             selectedDate: new Date(),

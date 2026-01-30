@@ -17,6 +17,7 @@ import { cn } from '../../../lib/utils';
 import { format, addDays } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import type { Client, ProjectColor } from '../../../types';
+import { DatePicker } from '../../../components/ui/DatePicker';
 
 // =============================================================================
 // Props
@@ -102,6 +103,8 @@ export function ProjectCreateWizard({
     const [selectedClient, setSelectedClient] = useState<Client | null>(null);
     const [slideDirection, setSlideDirection] = useState(1);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isStartDatePickerOpen, setIsStartDatePickerOpen] = useState(false);
+    const [isEndDatePickerOpen, setIsEndDatePickerOpen] = useState(false);
 
     // フォーム値を監視
     const watchedValues = watch();
@@ -118,12 +121,12 @@ export function ProjectCreateWizard({
             setValue('clientId', clientId);
             setSelectedClient(client);
 
-            // デフォルト案件名を自動入力
-            if (!watchedValues.title) {
-                setValue('title', `${client.name} 案件`);
-            }
+            // 自動入力ロジックを削除（ユーザー要望により手動入力を強制）
+            // if (!watchedValues.title) {
+            //     setValue('title', `${client.name} 案件`);
+            // }
         },
-        [setValue, watchedValues.title]
+        [setValue]
     );
 
     // 次へボタン
@@ -173,10 +176,13 @@ export function ProjectCreateWizard({
         [selectedClient, onSubmit, triggerHaptic, resetWizard, onOpenChange]
     );
 
-    // ウィザードを閉じる際にリセット
+    // ウィザードの開閉検知
     useEffect(() => {
-        if (!open) {
+        if (open) {
+            // 開いた時にリセット（最新の日付を反映するため）
             resetWizard();
+        } else {
+            // 閉じた時に選択状態クリア
             setSelectedClient(null);
         }
     }, [open, resetWizard]);
@@ -197,7 +203,12 @@ export function ProjectCreateWizard({
         <Drawer.Root open={open} onOpenChange={onOpenChange}>
             <Drawer.Portal>
                 <Drawer.Overlay className="fixed inset-0 bg-black/60 z-40" />
-                <Drawer.Content className="fixed bottom-0 left-0 right-0 z-50 bg-background rounded-t-3xl flex flex-col h-[95vh]">
+                <Drawer.Content
+                    className="fixed bottom-0 left-0 right-0 z-50 bg-background rounded-t-3xl flex flex-col h-[95vh]"
+                    onClick={(e) => e.stopPropagation()}
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onTouchStart={(e) => e.stopPropagation()}
+                >
                     {/* ハンドル */}
                     <div className="mx-auto w-12 h-1.5 flex-shrink-0 rounded-full bg-gray-600 my-4" />
 
@@ -350,12 +361,13 @@ export function ProjectCreateWizard({
                                             <label className="block text-sm font-medium text-gray-400 mb-2">
                                                 開始日 <span className="text-expense">*</span>
                                             </label>
-                                            <input
-                                                type="date"
-                                                value={watchedValues.startDate ? format(watchedValues.startDate, 'yyyy-MM-dd') : ''}
-                                                onChange={(e) => setValue('startDate', new Date(e.target.value))}
-                                                className="w-full h-14 px-4 bg-surface-light rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-primary-500 text-lg"
-                                            />
+                                            <div
+                                                onClick={() => setIsStartDatePickerOpen(true)}
+                                                className="w-full h-14 px-4 bg-surface-light rounded-xl text-white flex items-center text-lg active:bg-surface transition-colors cursor-pointer"
+                                            >
+                                                {watchedValues.startDate ? format(watchedValues.startDate, 'yyyy年M月d日', { locale: ja }) : <span className="text-gray-500">日付を選択</span>}
+                                                <Calendar className="ml-auto w-5 h-5 text-gray-400" />
+                                            </div>
                                         </div>
 
                                         {/* 終了日 */}
@@ -363,13 +375,16 @@ export function ProjectCreateWizard({
                                             <label className="block text-sm font-medium text-gray-400 mb-2">
                                                 終了日（納品日） <span className="text-expense">*</span>
                                             </label>
-                                            <input
-                                                type="date"
-                                                value={watchedValues.endDate ? format(watchedValues.endDate, 'yyyy-MM-dd') : ''}
-                                                onChange={(e) => setValue('endDate', new Date(e.target.value))}
-                                                min={watchedValues.startDate ? format(watchedValues.startDate, 'yyyy-MM-dd') : undefined}
-                                                className="w-full h-14 px-4 bg-surface-light rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-primary-500 text-lg"
-                                            />
+                                            <div
+                                                onClick={() => setIsEndDatePickerOpen(true)}
+                                                className={cn(
+                                                    "w-full h-14 px-4 bg-surface-light rounded-xl flex items-center text-lg active:bg-surface transition-colors cursor-pointer",
+                                                    watchedValues.endDate ? "text-white" : "text-gray-500"
+                                                )}
+                                            >
+                                                {watchedValues.endDate ? format(watchedValues.endDate, 'yyyy年M月d日', { locale: ja }) : '日付を選択'}
+                                                <Calendar className="ml-auto w-5 h-5 text-gray-400" />
+                                            </div>
                                             {errors.endDate && (
                                                 <p className="text-expense text-sm mt-1">{errors.endDate.message}</p>
                                             )}
@@ -490,6 +505,21 @@ export function ProjectCreateWizard({
                         </AnimatePresence>
                     </div>
                 </Drawer.Content>
+            </Drawer.Portal>
+            <Drawer.Portal>
+                {/* DatePickers - ポータル外に出すとz-index管理が楽だが、createPortalされているのでここにおいてもbody直下にレンダーされる */}
+                <DatePicker
+                    open={isStartDatePickerOpen}
+                    onOpenChange={setIsStartDatePickerOpen}
+                    value={watchedValues.startDate || new Date()}
+                    onConfirm={(date) => setValue('startDate', date)}
+                />
+                <DatePicker
+                    open={isEndDatePickerOpen}
+                    onOpenChange={setIsEndDatePickerOpen}
+                    value={watchedValues.endDate || watchedValues.startDate || new Date()}
+                    onConfirm={(date) => setValue('endDate', date)}
+                />
             </Drawer.Portal>
         </Drawer.Root>
     );

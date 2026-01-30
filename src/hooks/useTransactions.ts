@@ -44,8 +44,8 @@ export interface CreateTransactionInput {
     type: 'income' | 'expense';
     amount: string;
     taxRate: string;
-    transactionDate: Date;
-    settlementDate: Date;
+    transactionDate: Date | null;
+    settlementDate: Date | null;
     isSettled?: boolean;
     clientId?: string;
     categoryId?: string;

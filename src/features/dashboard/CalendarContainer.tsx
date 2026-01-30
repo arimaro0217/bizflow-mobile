@@ -7,21 +7,16 @@
 // - AnimatePresence でクロスフェード遷移
 // =============================================================================
 
-import { useState, useMemo } from 'react';
+import { useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Briefcase, Wallet, TrendingUp, TrendingDown } from 'lucide-react';
+import { Briefcase, Wallet, TrendingUp, TrendingDown, RefreshCcw } from 'lucide-react';
 import { isSameMonth, startOfMonth } from 'date-fns';
 import { ViewToggle } from '../../components/ui/ViewToggle';
 import { SmartCalendar } from '../calendar/components/SmartCalendar';
 import { Calendar } from '../calendar/Calendar';
 import type { Project, Transaction, Client } from '../../types';
+import { useAppStore } from '../../stores/appStore';
 import Decimal from 'decimal.js';
-
-// =============================================================================
-// 型定義
-// =============================================================================
-
-type ViewMode = 'project' | 'cashflow';
 
 interface CalendarContainerProps {
     projects: Project[];
@@ -34,10 +29,6 @@ interface CalendarContainerProps {
     onTransactionClick?: (transaction: Transaction) => void;
 }
 
-// =============================================================================
-// メインコンポーネント
-// =============================================================================
-
 export function CalendarContainer({
     projects,
     transactions,
@@ -47,8 +38,8 @@ export function CalendarContainer({
     onProjectClick,
     onTransactionClick,
 }: CalendarContainerProps) {
-    const [viewMode, setViewMode] = useState<ViewMode>('cashflow');
-    const [currentMonth] = useState(new Date());
+    const { viewMode, setViewMode } = useAppStore();
+    const currentMonth = new Date(); // TODO: selectedDate from store might be better, but keep simple for now
 
     // 今月のサマリー計算（月でフィルタリング）
     const summary = useMemo(() => {
@@ -74,61 +65,58 @@ export function CalendarContainer({
         );
     }, [transactions, currentMonth]);
 
+    // ビュー切り替えオプション
+    // 資金繰り（キャッシュ）と発生主義（アクルーアル）は統合して「会計」タブとし、案件は「案件」タブとする?
+    // ここではシンプルに3つ並べるか、あるいは「案件」vs「会計」にして、会計の中で発生/入金を切り替えるか。
+    // DashboardヘッダーですでにToggleSwitchがあるため、ここでは「案件」か「それ以外（会計）」を切り替えるのが良さそうだが、
+    // StoreのviewModeは3値フラットなので、ここでもフラットに扱う方が整合性がとりやすい。
     const viewOptions = [
-        { label: '資金繰り', value: 'cashflow', icon: <Wallet className="w-4 h-4" /> },
-        { label: '案件管理', value: 'project', icon: <Briefcase className="w-4 h-4" /> },
+        { label: '入金', value: 'cash', icon: <Wallet className="w-4 h-4" /> },
+        { label: '発生', value: 'accrual', icon: <TrendingUp className="w-4 h-4" /> },
+        { label: '案件', value: 'project', icon: <Briefcase className="w-4 h-4" /> },
     ];
+
+    // Calendarコンポーネントに渡すトランザクションは、親で加工された calendarTransactions を使う
+    // ただし、viewModeに応じて親(Dashboard)が calendarTransactions を生成しているので、
+    // ここでは単にそれを表示するだけでよい。
 
     return (
         <div className="space-y-4">
-            {/* 表示切替スイッチ（上部に配置） */}
+            {/* 表示切替スイッチ */}
             <ViewToggle
                 options={viewOptions}
                 value={viewMode}
-                onChange={(v) => setViewMode(v as ViewMode)}
+                onChange={(v) => setViewMode(v as any)}
                 className="w-full"
             />
 
-            {/* ミニサマリー（今月のみ） */}
-            <div className="grid grid-cols-2 gap-3">
-                <div className="bg-surface-light rounded-xl p-3 border border-white/5">
-                    <div className="flex items-center gap-2 text-income mb-1">
-                        <TrendingUp className="w-4 h-4" />
-                        <span className="text-xs font-medium">今月の収入</span>
+            {/* ミニサマリー（今月のみ） - 案件モードのときは別サマリーがいいかも？ */}
+            {viewMode !== 'project' && (
+                <div className="grid grid-cols-2 gap-3">
+                    <div className="bg-surface-light rounded-xl p-3 border border-white/5">
+                        <div className="flex items-center gap-2 text-income mb-1">
+                            <TrendingUp className="w-4 h-4" />
+                            <span className="text-xs font-medium">今月の収入</span>
+                        </div>
+                        <p className="text-lg font-bold text-white">
+                            ¥{summary.income.toNumber().toLocaleString()}
+                        </p>
                     </div>
-                    <p className="text-lg font-bold text-white">
-                        ¥{summary.income.toNumber().toLocaleString()}
-                    </p>
-                </div>
-                <div className="bg-surface-light rounded-xl p-3 border border-white/5">
-                    <div className="flex items-center gap-2 text-expense mb-1">
-                        <TrendingDown className="w-4 h-4" />
-                        <span className="text-xs font-medium">今月の支出</span>
+                    <div className="bg-surface-light rounded-xl p-3 border border-white/5">
+                        <div className="flex items-center gap-2 text-expense mb-1">
+                            <TrendingDown className="w-4 h-4" />
+                            <span className="text-xs font-medium">今月の支出</span>
+                        </div>
+                        <p className="text-lg font-bold text-white">
+                            ¥{summary.expense.toNumber().toLocaleString()}
+                        </p>
                     </div>
-                    <p className="text-lg font-bold text-white">
-                        ¥{summary.expense.toNumber().toLocaleString()}
-                    </p>
                 </div>
-            </div>
+            )}
 
             {/* コンテンツエリア: モード切り替え */}
             <AnimatePresence mode="wait">
-                {viewMode === 'cashflow' ? (
-                    <motion.div
-                        key="cashflow"
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: 20 }}
-                        transition={{ duration: 0.2 }}
-                    >
-                        <Calendar
-                            transactions={calendarTransactions}
-                            fullTransactions={transactions}
-                            clients={clients}
-                            onTransactionClick={onTransactionClick}
-                        />
-                    </motion.div>
-                ) : (
+                {viewMode === 'project' ? (
                     <motion.div
                         key="project"
                         initial={{ opacity: 0, x: 20 }}
@@ -141,6 +129,21 @@ export function CalendarContainer({
                             transactions={transactions}
                             onDateClick={onDateClick}
                             onProjectClick={onProjectClick}
+                        />
+                    </motion.div>
+                ) : (
+                    <motion.div
+                        key="cashflow" // cash も accrual も同じカレンダーコンポーネントを使う
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: 20 }}
+                        transition={{ duration: 0.2 }}
+                    >
+                        <Calendar
+                            transactions={calendarTransactions}
+                            fullTransactions={transactions}
+                            clients={clients}
+                            onTransactionClick={onTransactionClick}
                         />
                     </motion.div>
                 )}

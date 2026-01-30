@@ -85,7 +85,10 @@ export function DatePicker({ open, onOpenChange, value, onConfirm }: DatePickerP
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        onClick={handleCancel}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            handleCancel();
+                        }}
                         onTouchMove={(e) => e.preventDefault()}
                         onWheel={(e) => e.preventDefault()}
                         className="fixed inset-0 bg-black/50 z-[9998] touch-none"
@@ -100,6 +103,8 @@ export function DatePicker({ open, onOpenChange, value, onConfirm }: DatePickerP
                             transition={{ type: 'spring', damping: 30, stiffness: 300 }}
                             className="w-full md:max-w-sm bg-surface-dark rounded-t-3xl md:rounded-2xl pb-safe md:pb-0 pointer-events-auto shadow-2xl overflow-hidden"
                             onClick={(e) => e.stopPropagation()}
+                            onPointerDown={(e) => e.stopPropagation()}
+                            onTouchStart={(e) => e.stopPropagation()}
                         >
                             {/* ハンドル（モバイルのみ） */}
                             <div className="flex justify-center py-3 md:hidden">
@@ -120,7 +125,11 @@ export function DatePicker({ open, onOpenChange, value, onConfirm }: DatePickerP
                             {/* 月ナビゲーション */}
                             <div className="px-6 pb-4 flex items-center justify-between">
                                 <button
-                                    onClick={() => setCurrentMonth(prev => subMonths(prev, 1))}
+                                    type="button"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setCurrentMonth(prev => subMonths(prev, 1));
+                                    }}
                                     className="p-2 rounded-full hover:bg-surface-light transition-colors"
                                 >
                                     <ChevronLeft className="w-5 h-5 text-gray-400" />
@@ -129,7 +138,11 @@ export function DatePicker({ open, onOpenChange, value, onConfirm }: DatePickerP
                                     {format(currentMonth, 'yyyy年M月', { locale: ja })}
                                 </span>
                                 <button
-                                    onClick={() => setCurrentMonth(prev => addMonths(prev, 1))}
+                                    type="button"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setCurrentMonth(prev => addMonths(prev, 1));
+                                    }}
                                     className="p-2 rounded-full hover:bg-surface-light transition-colors"
                                 >
                                     <ChevronRight className="w-5 h-5 text-gray-400" />

@@ -1,7 +1,9 @@
-import { useState, useEffect } from 'react';
-import { ArrowLeft, Plus, Repeat } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { ArrowLeft, Plus, Repeat, CheckCircle, AlertCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { AppLayout } from '../components/layout/AppLayout';
+import { ConfirmDrawer } from '../components/ui';
+import { toast } from 'sonner';
 import { useAuth } from '../features/auth';
 import { RecurringMasterList, RecurringMasterForm, type RecurringMasterFormData } from '../features/recurring';
 import { ClientSheet, ClientFormSheet } from '../features/clients';
@@ -11,7 +13,7 @@ import {
     useClients,
     useTransactions,
 } from '../hooks';
-import type { RecurringMaster, Client } from '../types';
+import type { RecurringMaster, Client, ClientFormData } from '../types';
 
 interface RecurringSettingsProps {
     onBack?: () => void;
@@ -34,13 +36,21 @@ export default function RecurringSettings({ onBack }: RecurringSettingsProps) {
     const [isClientFormOpen, setIsClientFormOpen] = useState(false);
     const [selectedClient, setSelectedClient] = useState<Client | null>(null);
     const [editingMaster, setEditingMaster] = useState<RecurringMaster | null>(null);
+    const [masterToDelete, setMasterToDelete] = useState<RecurringMaster | null>(null);
 
-    // アプリ起動時に自動延長をチェック
+    // アプリ起動時に自動延長をチェック（データが整った段階で一度だけ実行）
+    const hasCheckedExtension = useRef(false);
     useEffect(() => {
-        if (masters.length > 0 && transactions.length >= 0 && clients.length >= 0) {
+        if (
+            !hasCheckedExtension.current &&
+            masters.length > 0 &&
+            transactions.length > 0 && // 0件の場合はチェック不要、またはロード完了フラグを見るべきだが簡易的に
+            clients.length >= 0
+        ) {
             autoExtendRecurringTransactions(masters, transactions, clients);
+            hasCheckedExtension.current = true;
         }
-    }, [masters.length]); // マスタ数が変わったときのみ実行
+    }, [masters, transactions, clients, autoExtendRecurringTransactions]);
 
     const handleCreateMaster = async (data: RecurringMasterFormData) => {
         try {
@@ -79,14 +89,23 @@ export default function RecurringSettings({ onBack }: RecurringSettingsProps) {
     };
 
     const handleDeleteMaster = async (master: RecurringMaster) => {
-        if (window.confirm(`「${master.title}」を削除しますか？\n未消込のトランザクションも削除されます。`)) {
-            try {
-                await deleteRecurringWithTransactions(master.id);
-                console.log('定期取引を削除しました');
-            } catch (error) {
-                console.error('削除に失敗:', error);
-            }
+        setMasterToDelete(master);
+    };
+
+    const executeDelete = async () => {
+        if (!masterToDelete) return;
+        try {
+            await deleteRecurringWithTransactions(masterToDelete.id);
+            toast.success('定期取引を削除しました', {
+                icon: <CheckCircle className="w-5 h-5" />,
+            });
+        } catch (error) {
+            console.error('削除に失敗:', error);
+            toast.error('削除に失敗しました', {
+                icon: <AlertCircle className="w-5 h-5" />,
+            });
         }
+        setMasterToDelete(null);
     };
 
     const handleToggleActive = async (master: RecurringMaster, isActive: boolean) => {
@@ -98,7 +117,7 @@ export default function RecurringSettings({ onBack }: RecurringSettingsProps) {
         }
     };
 
-    const handleCreateClient = async (data: any) => {
+    const handleCreateClient = async (data: ClientFormData) => {
         try {
             await addClient(data);
             console.log('取引先を作成しました');
@@ -201,6 +220,16 @@ export default function RecurringSettings({ onBack }: RecurringSettingsProps) {
                 open={isClientFormOpen}
                 onOpenChange={setIsClientFormOpen}
                 onSubmit={handleCreateClient}
+            />
+
+            <ConfirmDrawer
+                open={!!masterToDelete}
+                onOpenChange={(open) => !open && setMasterToDelete(null)}
+                title={`「${masterToDelete?.title}」を削除しますか？`}
+                description="未消込のトランザクションも同時に削除されます。"
+                confirmLabel="削除する"
+                variant="destructive"
+                onConfirm={executeDelete}
             />
         </AppLayout>
     );

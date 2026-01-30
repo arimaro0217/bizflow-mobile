@@ -20,6 +20,9 @@ import {
 } from 'firebase/auth';
 import {
     getFirestore,
+    initializeFirestore,
+    persistentLocalCache,
+    persistentMultipleTabManager,
     connectFirestoreEmulator,
     type Firestore,
 } from 'firebase/firestore';
@@ -61,6 +64,8 @@ if (getApps().length === 0) {
             authDomain: 'demo-project.firebaseapp.com',
             projectId: 'demo-project',
         });
+        // エミュレータ環境では通常のgetFirestoreを使用（永続化設定は任意だが、シンプルさ優先）
+        db = getFirestore(app);
     } else {
         if (!firebaseConfig.apiKey) {
             throw new Error(
@@ -68,13 +73,25 @@ if (getApps().length === 0) {
             );
         }
         app = initializeApp(firebaseConfig);
+
+        // 本番環境（および通常開発環境）ではオフライン永続化を有効化
+        // これにより電波が悪い場所でもアプリが動作する
+        db = initializeFirestore(app, {
+            localCache: persistentLocalCache({
+                tabManager: persistentMultipleTabManager()
+            })
+        });
     }
 } else {
     app = getApp();
+    auth = getAuth(app);
+    db = getFirestore(app);
 }
 
+// authの初期化はgetAuthで再度取得してもシングルトンなので安全だが、
+// ここでは初回初期化時に設定し、再利用時はgetAuth(app)で取得するように統一も可能
+// しかし既存コードのフローに合わせてここで代入
 auth = getAuth(app);
-db = getFirestore(app);
 
 // -----------------------------------------------------------------------------
 // エミュレータ接続
@@ -82,12 +99,15 @@ db = getFirestore(app);
 
 if (useEmulator) {
     // 接続済みフラグで重複接続を防ぐ
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const emulatorConnected = (window as any).__FIREBASE_EMULATOR_CONNECTED__;
 
     if (!emulatorConnected) {
         try {
             connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true });
             connectFirestoreEmulator(db, '127.0.0.1', 8080);
+
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             (window as any).__FIREBASE_EMULATOR_CONNECTED__ = true;
 
             // 開発者向け警告表示

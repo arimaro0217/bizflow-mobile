@@ -3,13 +3,17 @@
 // =============================================================================
 
 import { useState } from 'react';
-import { ArrowLeft, Plus, Building2, Pencil, Trash2, GripVertical, ChevronRight } from 'lucide-react';
+
+import { ArrowLeft, Plus, Building2, Pencil, Trash2, GripVertical, ChevronRight, CheckCircle, AlertCircle } from 'lucide-react';
 import { motion, Reorder, useDragControls } from 'framer-motion';
 import { AppLayout } from '../components/layout/AppLayout';
 import { ClientFormSheet } from '../features/clients';
 import { formatPaymentCycle } from '../lib/settlement';
 import { cn } from '../lib/utils';
 import type { Client } from '../types';
+import { ConfirmDrawer } from '../components/ui';
+import { useHaptic } from '../hooks';
+import { toast } from 'sonner';
 
 interface ClientManagementPageProps {
     onBack: () => void;
@@ -32,6 +36,8 @@ export default function ClientManagementPage({
     const [editingClient, setEditingClient] = useState<Client | null>(null);
     const [isEditMode, setIsEditMode] = useState(false);
     const [orderedClients, setOrderedClients] = useState<Client[]>(clients);
+    const [clientToDelete, setClientToDelete] = useState<Client | null>(null);
+    const { trigger: haptic } = useHaptic();
 
     // クライアントリストが変わったらローカルステートを更新
     if (JSON.stringify(clients.map(c => c.id)) !== JSON.stringify(orderedClients.map(c => c.id))) {
@@ -49,9 +55,26 @@ export default function ClientManagementPage({
     };
 
     const handleDelete = async (client: Client) => {
-        if (window.confirm(`「${client.name}」を削除しますか？`)) {
-            await onDeleteClient(client);
+        setClientToDelete(client);
+    };
+
+    const executeDelete = async () => {
+        if (!clientToDelete) return;
+
+        try {
+            await onDeleteClient(clientToDelete);
+            haptic('success');
+            toast.success('取引先を削除しました', {
+                icon: <CheckCircle className="w-5 h-5" />,
+            });
+        } catch (error) {
+            console.error('削除に失敗:', error);
+            haptic('error');
+            toast.error('削除に失敗しました', {
+                icon: <AlertCircle className="w-5 h-5" />,
+            });
         }
+        setClientToDelete(null);
     };
 
     const handleSubmit = async (data: Omit<Client, 'id' | 'uid' | 'createdAt'>) => {
@@ -195,6 +218,16 @@ export default function ClientManagementPage({
                 }}
                 onSubmit={handleSubmit}
                 initialClient={editingClient}
+            />
+
+            <ConfirmDrawer
+                open={!!clientToDelete}
+                onOpenChange={(open) => !open && setClientToDelete(null)}
+                title={`「${clientToDelete?.name}」を削除しますか？`}
+                description="この取引先に紐づく未消込のトランザクションも同時に削除される可能性があります。"
+                confirmLabel="削除する"
+                variant="destructive"
+                onConfirm={executeDelete}
             />
         </AppLayout>
     );

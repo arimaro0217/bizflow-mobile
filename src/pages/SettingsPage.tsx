@@ -2,11 +2,13 @@
 // SettingsPage - モバイル設定画面
 // =============================================================================
 
+import { useState } from 'react';
 import { ArrowLeft, LayoutDashboard, PieChart, Repeat, Building2, LogOut, ChevronRight } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { AppLayout } from '../components/layout/AppLayout';
 import { useAuth } from '../features/auth';
 import { cn } from '../lib/utils';
+import { ConfirmDrawer } from '../components/ui';
 
 interface SettingsPageProps {
     onBack: () => void;
@@ -63,12 +65,11 @@ const menuItems: MenuItem[] = [
 
 export default function SettingsPage({ onBack, onNavigate }: SettingsPageProps) {
     const { signOut } = useAuth();
+    const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
     const handleItemClick = (id: MenuItem['id']) => {
         if (id === 'logout') {
-            if (window.confirm('ログアウトしますか？')) {
-                signOut();
-            }
+            setShowLogoutConfirm(true);
         } else {
             onNavigate(id);
         }
@@ -134,11 +135,19 @@ export default function SettingsPage({ onBack, onNavigate }: SettingsPageProps) 
                     ))}
                 </div>
 
-                {/* バージョン情報 */}
                 <div className="mt-8 text-center">
                     <p className="text-xs text-gray-600">BizFlow v1.0.0</p>
                 </div>
             </div>
-        </AppLayout>
+
+            <ConfirmDrawer
+                open={showLogoutConfirm}
+                onOpenChange={setShowLogoutConfirm}
+                title="ログアウトしますか？"
+                confirmLabel="ログアウト"
+                variant="destructive"
+                onConfirm={signOut}
+            />
+        </AppLayout >
     );
 }

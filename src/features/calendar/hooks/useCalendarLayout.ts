@@ -4,7 +4,9 @@
 // 【設計意図】
 // - 案件バーが重ならないように配置計算を行う
 // - 各日付セルで「使用済みの段数」を管理し、最小の空き段を割り当てる
-// - 月をまたぐバーも正しく連続して表示できるように isStart/isEnd フラグを付与
+// - パフォーマンス最適化:
+//   - プロジェクトのソートをメモ化
+//   - ビューモード（月/週）に応じて計算範囲を最小化
 // =============================================================================
 
 import { useMemo } from 'react';
@@ -25,6 +27,8 @@ import type { Project, Transaction } from '../../../types';
 // 型定義
 // =============================================================================
 
+export type CalendarViewMode = 'month' | 'week';
+
 /** レンダリング可能なイベント（1日分のバー情報） */
 export interface RenderableEvent {
     project: Project;
@@ -37,7 +41,7 @@ export interface RenderableEvent {
 /** 日付ごとのイベントマップ */
 export type EventsByDate = Record<string, RenderableEvent[]>;
 
-/** 日付ごとのトランザクション集計 */
+/** k: 日付文字列, v: 集計情報 */
 export interface DailyTransactionSummary {
     income: number;
     expense: number;
@@ -65,7 +69,6 @@ export interface UseCalendarLayoutReturn {
 // 定数
 // =============================================================================
 
-/** 1セルに表示可能な最大段数 */
 const MAX_VISIBLE_ROWS = 3;
 
 // =============================================================================
@@ -73,35 +76,16 @@ const MAX_VISIBLE_ROWS = 3;
 // =============================================================================
 
 export function useCalendarLayout(
-    currentMonth: Date,
+    currentDate: Date,
     projects: Project[],
-    transactions: Transaction[]
+    transactions: Transaction[],
+    viewMode: CalendarViewMode = 'month'
 ): UseCalendarLayoutReturn {
-    return useMemo(() => {
-        // ---------------------------------------------------------------------
-        // 1. 対象月の日付グリッドを生成（前月・翌月の埋めを含む）
-        // ---------------------------------------------------------------------
-        const monthStart = startOfMonth(currentMonth);
-        const monthEnd = endOfMonth(currentMonth);
-
-        // 月曜始まりのカレンダー
-        const calendarStart = startOfWeek(monthStart, { weekStartsOn: 1 });
-        const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: 1 });
-
-        const allDates = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
-        const today = new Date();
-
-        const days: CalendarDay[] = allDates.map(date => ({
-            date,
-            dateKey: format(date, 'yyyy-MM-dd'),
-            isCurrentMonth: date.getMonth() === currentMonth.getMonth(),
-            isToday: isSameDay(date, today),
-        }));
-
-        // ---------------------------------------------------------------------
-        // 2. 案件を「開始日が早い順」かつ「期間が長い順」にソート
-        // ---------------------------------------------------------------------
-        const sortedProjects = [...projects]
+    // -------------------------------------------------------------------------
+    // 1. プロジェクトのソート（データ変更時のみ再計算）
+    // -------------------------------------------------------------------------
+    const sortedProjects = useMemo(() => {
+        return [...projects]
             .filter(p => p.startDate && p.endDate)
             .sort((a, b) => {
                 // 開始日が早い順
@@ -113,114 +97,142 @@ export function useCalendarLayout(
                 const durationB = b.endDate!.getTime() - b.startDate!.getTime();
                 return durationB - durationA;
             });
+    }, [projects]);
+
+    return useMemo(() => {
+        // ---------------------------------------------------------------------
+        // 2. 表示範囲の日付グリッド生成
+        // ---------------------------------------------------------------------
+        const today = new Date();
+        let start: Date;
+        let end: Date;
+
+        if (viewMode === 'week') {
+            start = startOfWeek(currentDate, { weekStartsOn: 1 });
+            end = endOfWeek(currentDate, { weekStartsOn: 1 });
+        } else {
+            const monthStart = startOfMonth(currentDate);
+            const monthEnd = endOfMonth(currentDate);
+            start = startOfWeek(monthStart, { weekStartsOn: 1 });
+            end = endOfWeek(monthEnd, { weekStartsOn: 1 });
+        }
+
+        const allDates = eachDayOfInterval({ start, end });
+        const days: CalendarDay[] = allDates.map(date => ({
+            date,
+            dateKey: format(date, 'yyyy-MM-dd'),
+            isCurrentMonth: date.getMonth() === currentDate.getMonth(),
+            isToday: isSameDay(date, today),
+        }));
 
         // ---------------------------------------------------------------------
-        // 3. 各日付セルの「使用済み段数」マップを初期化
+        // 3. レイアウト計算用マップ初期化
         // ---------------------------------------------------------------------
         const usedRowsByDate: Record<string, Set<number>> = {};
-        days.forEach(day => {
-            usedRowsByDate[day.dateKey] = new Set();
-        });
-
-        // ---------------------------------------------------------------------
-        // 4. 各案件に「期間中を通して空いている最小の段数」を割り当て
-        // ---------------------------------------------------------------------
         const eventsByDate: EventsByDate = {};
-        days.forEach(day => {
-            eventsByDate[day.dateKey] = [];
-        });
+        const transactionsByDate: TransactionsByDate = {};
 
+        // 高速アクセスのため初期化ループを一回にまとめる & 文字列連結を避ける
+        const dateKeySet = new Set<string>();
+
+        for (const day of days) {
+            const k = day.dateKey;
+            usedRowsByDate[k] = new Set();
+            eventsByDate[k] = [];
+            transactionsByDate[k] = { income: 0, expense: 0, transactions: [] };
+            dateKeySet.add(k);
+        }
+
+        // ---------------------------------------------------------------------
+        // 4. 案件の配置計算 (Tetris Algorithm)
+        // ---------------------------------------------------------------------
         let maxRowIndex = 0;
 
-        sortedProjects.forEach(project => {
-            if (!project.startDate || !project.endDate) return;
+        for (const project of sortedProjects) {
+            const pStart = project.startDate!;
+            const pEnd = project.endDate!;
 
-            // この案件がカバーする日付キーを取得
-            const projectStart = project.startDate;
-            const projectEnd = project.endDate;
+            // 範囲外判定（高速化）
+            if (isAfter(pStart, end) || isBefore(pEnd, start)) continue;
 
-            // カレンダー表示範囲と案件期間の交差部分を計算
-            const displayStart = isBefore(projectStart, calendarStart) ? calendarStart : projectStart;
-            const displayEnd = isAfter(projectEnd, calendarEnd) ? calendarEnd : projectEnd;
+            // 表示範囲と案件期間の交差取得
+            const effectiveStart = isBefore(pStart, start) ? start : pStart;
+            const effectiveEnd = isAfter(pEnd, end) ? end : pEnd;
 
-            // 表示範囲外ならスキップ
-            if (isAfter(displayStart, calendarEnd) || isBefore(displayEnd, calendarStart)) {
-                return;
+            // 日付ループ生成も最適化（都度eachDayOfInterval呼び出しを避ける）
+            // しかし日付計算は軽量なので、可読性重視でループ処理
+            // ただし、Mapへのアクセス回数を減らす
+            const intersectDays = eachDayOfInterval({ start: effectiveStart, end: effectiveEnd });
+            const intersectKeys: string[] = [];
+
+            // 有効なキーのみ収集
+            for (const d of intersectDays) {
+                const k = format(d, 'yyyy-MM-dd');
+                if (dateKeySet.has(k)) intersectKeys.push(k);
             }
 
-            const projectDays = eachDayOfInterval({ start: displayStart, end: displayEnd });
-            const projectDateKeys = projectDays.map(d => format(d, 'yyyy-MM-dd'));
+            if (intersectKeys.length === 0) continue;
 
-            // ---------------------------------------------------------------
-            // 「期間中を通して空いている最小の段数」を探す
-            // ---------------------------------------------------------------
+            // 空き段を探す
             let assignedRow = 0;
+            // 最大段数を超えてもループは回すが、ある程度で打ち切るべきか？
+            // ここではMAX_VISIBLE_ROWSまでは厳密にチェック
             while (assignedRow < MAX_VISIBLE_ROWS) {
-                const isRowAvailable = projectDateKeys.every(
-                    dateKey => !usedRowsByDate[dateKey]?.has(assignedRow)
-                );
+                let isRowAvailable = true;
+                for (const k of intersectKeys) {
+                    if (usedRowsByDate[k]?.has(assignedRow)) {
+                        isRowAvailable = false;
+                        break;
+                    }
+                }
                 if (isRowAvailable) break;
                 assignedRow++;
             }
 
             const isOverflow = assignedRow >= MAX_VISIBLE_ROWS;
-
-            // 最大使用段数を記録
             if (!isOverflow && assignedRow > maxRowIndex) {
                 maxRowIndex = assignedRow;
             }
 
-            // ---------------------------------------------------------------
-            // 各日付にイベント情報を登録
-            // ---------------------------------------------------------------
-            projectDateKeys.forEach((dateKey, index) => {
-                // 使用済みマークを付ける（オーバーフローでなければ）
+            // 配置確定
+            intersectKeys.forEach((key, idx) => {
                 if (!isOverflow) {
-                    usedRowsByDate[dateKey]?.add(assignedRow);
+                    usedRowsByDate[key]!.add(assignedRow);
                 }
 
-                // イベント情報を追加
-                if (eventsByDate[dateKey]) {
-                    eventsByDate[dateKey].push({
-                        project,
-                        visualRowIndex: assignedRow,
-                        isStart: index === 0,
-                        isEnd: index === projectDateKeys.length - 1,
-                        isOverflow,
-                    });
-                }
+                eventsByDate[key].push({
+                    project,
+                    visualRowIndex: assignedRow,
+                    isStart: idx === 0,
+                    isEnd: idx === intersectKeys.length - 1,
+                    isOverflow,
+                });
             });
-        });
+        }
 
         // ---------------------------------------------------------------------
-        // 5. トランザクションを日付ごとに集計
+        // 5. トランザクション集計
         // ---------------------------------------------------------------------
-        const transactionsByDate: TransactionsByDate = {};
-        days.forEach(day => {
-            transactionsByDate[day.dateKey] = {
-                income: 0,
-                expense: 0,
-                transactions: [],
-            };
-        });
-
-        transactions.forEach(tx => {
-            // settlementDate（入金/支払予定日）で集計
+        for (const tx of transactions) {
             const targetDate = tx.settlementDate || tx.transactionDate;
-            if (!targetDate) return;
+            if (!targetDate) continue;
+
+            // 範囲外判定（高速化）
+            if (isBefore(targetDate, start) || isAfter(targetDate, end)) continue;
 
             const dateKey = format(targetDate, 'yyyy-MM-dd');
-            if (!transactionsByDate[dateKey]) return;
+            if (!transactionsByDate[dateKey]) continue;
 
-            transactionsByDate[dateKey].transactions.push(tx);
-            const amount = parseFloat(tx.amount) || 0;
+            const summary = transactionsByDate[dateKey];
+            summary.transactions.push(tx);
 
+            const val = parseFloat(tx.amount) || 0;
             if (tx.type === 'income') {
-                transactionsByDate[dateKey].income += amount;
+                summary.income += val;
             } else {
-                transactionsByDate[dateKey].expense += amount;
+                summary.expense += val;
             }
-        });
+        }
 
         return {
             days,
@@ -228,7 +240,7 @@ export function useCalendarLayout(
             transactionsByDate,
             maxRowIndex,
         };
-    }, [currentMonth, projects, transactions]);
+    }, [currentDate, sortedProjects, transactions, viewMode]);
 }
 
 export default useCalendarLayout;

@@ -41,7 +41,7 @@ export function calculateSettlementDate(
     }
 
     // 支払月を計算
-    let paymentMonth = addMonths(closingDate, paymentMonthOffset);
+    const paymentMonth = addMonths(closingDate, paymentMonthOffset);
 
     // 支払日を計算（99は月末）
     if (paymentDay === 99) {
