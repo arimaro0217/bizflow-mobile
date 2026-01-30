@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AlertCircle } from 'lucide-react';
 import { Button } from '../../components/ui';
@@ -20,6 +21,17 @@ export function UpdateModeDialog({
     onSelect,
     isSettled = false,
 }: UpdateModeDialogProps) {
+    // モーダル表示時にbodyのスクロールをロック
+    useEffect(() => {
+        if (open) {
+            const originalStyle = window.getComputedStyle(document.body).overflow;
+            document.body.style.overflow = 'hidden';
+            return () => {
+                document.body.style.overflow = originalStyle;
+            };
+        }
+    }, [open]);
+
     if (!open) return null;
 
     const content = (
@@ -32,7 +44,9 @@ export function UpdateModeDialog({
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
                         onClick={onClose}
-                        className="fixed inset-0 bg-black/60 z-[100]"
+                        onTouchMove={(e) => e.preventDefault()}
+                        onWheel={(e) => e.preventDefault()}
+                        className="fixed inset-0 bg-black/60 z-[100] touch-none"
                     />
 
                     {/* ダイアログ */}
@@ -75,8 +89,8 @@ export function UpdateModeDialog({
                                     onClick={() => onSelect('future')}
                                     disabled={isSettled}
                                     className={`w-full p-4 bg-surface rounded-xl text-left transition-colors border border-white/5 ${isSettled
-                                            ? 'opacity-50 cursor-not-allowed'
-                                            : 'hover:bg-surface-light'
+                                        ? 'opacity-50 cursor-not-allowed'
+                                        : 'hover:bg-surface-light'
                                         }`}
                                 >
                                     <p className="text-white font-medium">これ以降すべての予定を変更</p>

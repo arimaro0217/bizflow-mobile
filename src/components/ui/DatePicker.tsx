@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -26,6 +26,17 @@ interface DatePickerProps {
 export function DatePicker({ open, onOpenChange, value, onConfirm }: DatePickerProps) {
     const [currentMonth, setCurrentMonth] = useState(value);
     const [selectedDate, setSelectedDate] = useState(value);
+
+    // モーダル表示時にbodyのスクロールをロック
+    useEffect(() => {
+        if (open) {
+            const originalStyle = window.getComputedStyle(document.body).overflow;
+            document.body.style.overflow = 'hidden';
+            return () => {
+                document.body.style.overflow = originalStyle;
+            };
+        }
+    }, [open]);
 
     const weekDays = ['月', '火', '水', '木', '金', '土', '日'];
 
@@ -75,7 +86,9 @@ export function DatePicker({ open, onOpenChange, value, onConfirm }: DatePickerP
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
                         onClick={handleCancel}
-                        className="fixed inset-0 bg-black/50 z-[9998]"
+                        onTouchMove={(e) => e.preventDefault()}
+                        onWheel={(e) => e.preventDefault()}
+                        className="fixed inset-0 bg-black/50 z-[9998] touch-none"
                     />
 
                     {/* ピッカー本体 */}
