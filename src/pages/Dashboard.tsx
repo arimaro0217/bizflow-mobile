@@ -34,6 +34,9 @@ export default function Dashboard() {
     const [showSettings, setShowSettings] = useState(false);
     const [showClientManagement, setShowClientManagement] = useState(false);
 
+    // 取引フォーム用の初期日付ステート
+    const [formInitialDate, setFormInitialDate] = useState(new Date());
+
     // Firestoreからリアルタイムでデータを取得
     const { transactions, loading: transactionsLoading, addTransaction, updateTransaction, deleteTransaction } = useTransactions(user?.uid);
     const { clients, addClient, updateClient, deleteClient, updateClientsOrder } = useClients(user?.uid);
@@ -145,6 +148,14 @@ export default function Dashboard() {
         } catch (error) {
             console.error('順序の更新に失敗:', error);
         }
+    };
+
+    // カレンダーの日付クリック時の処理
+    const handleDateClick = (date: Date) => {
+        setFormInitialDate(date);
+        setEditingTransaction(null);
+        setTransactionClient(null);
+        setIsTransactionFormOpen(true);
     };
 
     // サマリー計算
@@ -293,9 +304,7 @@ export default function Dashboard() {
                         transactions={transactions}
                         clients={clients}
                         calendarTransactions={mapTransactionsForCalendar(transactions, viewMode)}
-                        onDateClick={(date) => {
-                            console.log('Date clicked:', date);
-                        }}
+                        onDateClick={handleDateClick}
                         onTransactionClick={handleEditTransaction}
                     />
                 </div>
@@ -358,6 +367,7 @@ export default function Dashboard() {
             <motion.button
                 whileTap={{ scale: 0.9 }}
                 onClick={() => {
+                    setFormInitialDate(new Date()); // 今日の日付で初期化、または selectedDate でも可
                     setEditingTransaction(null);
                     setTransactionClient(null);
                     setIsTransactionFormOpen(true);
@@ -380,7 +390,7 @@ export default function Dashboard() {
                 onSubmit={handleFormSubmit}
                 clients={clients}
                 onOpenClientSheet={() => setIsClientSheetOpen(true)}
-                initialDate={selectedDate}
+                initialDate={formInitialDate}
                 selectedClient={transactionClient}
                 initialTransaction={editingTransaction}
             />
