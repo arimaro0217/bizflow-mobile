@@ -29,6 +29,11 @@ interface CalendarContainerProps {
     onProjectClick?: (project: Project) => void;
     onTransactionClick?: (transaction: Transaction) => void;
     onTransactionDelete?: (transaction: Transaction) => void;
+    /** 日付詳細ポップアップの管理用 */
+    openDetailSheet?: boolean;
+    detailDate?: Date | null;
+    detailTransactions?: Transaction[];
+    onDetailOpenChange?: (open: boolean) => void;
 }
 
 export function CalendarContainer({
@@ -40,6 +45,10 @@ export function CalendarContainer({
     onProjectClick,
     onTransactionClick,
     onTransactionDelete,
+    openDetailSheet = false,
+    detailDate = null,
+    detailTransactions = [],
+    onDetailOpenChange,
 }: CalendarContainerProps) {
     const { viewMode, setViewMode, currentMonth } = useAppStore();
     // currentMonth from store (synced with Calendar component)
@@ -135,6 +144,10 @@ export function CalendarContainer({
                             onProjectClick={onProjectClick}
                             onTransactionClick={onTransactionClick}
                             onTransactionDelete={onTransactionDelete}
+                            openDetailSheet={openDetailSheet}
+                            detailDate={detailDate}
+                            detailTransactions={detailTransactions}
+                            onDetailOpenChange={onDetailOpenChange}
                         />
                     </motion.div>
                 ) : (
@@ -152,6 +165,10 @@ export function CalendarContainer({
                             onTransactionClick={onTransactionClick}
                             onDateClick={onDateClick}
                             onTransactionDelete={onTransactionDelete}
+                            openDetailSheet={openDetailSheet}
+                            detailDate={detailDate}
+                            detailTransactions={detailTransactions}
+                            onDetailOpenChange={onDetailOpenChange}
                         />
                     </motion.div>
                 )}

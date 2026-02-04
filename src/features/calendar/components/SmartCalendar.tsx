@@ -13,6 +13,7 @@ import { format, addMonths, subMonths, addWeeks, subWeeks, differenceInCalendarD
 import { ja } from 'date-fns/locale';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useDrag } from '@use-gesture/react';
 import {
     DndContext,
     DragOverlay,
@@ -49,6 +50,11 @@ interface SmartCalendarProps {
     onTransactionClick?: (transaction: Transaction) => void;
     onTransactionDelete?: (transaction: Transaction) => void;
     clients?: Client[];
+    /** 日付詳細ポップアップの管理用（リフティング） */
+    openDetailSheet?: boolean;
+    detailDate?: Date | null;
+    detailTransactions?: Transaction[];
+    onDetailOpenChange?: (open: boolean) => void;
 }
 
 // =============================================================================
@@ -63,6 +69,10 @@ export function SmartCalendar({
     onTransactionClick,
     onTransactionDelete,
     clients = [],
+    openDetailSheet = false,
+    detailDate = null,
+    detailTransactions = [],
+    onDetailOpenChange,
 }: SmartCalendarProps) {
     const { user } = useAuth();
     const { updateProject, deleteProject } = useProjectOperations(user?.uid);
@@ -94,9 +104,9 @@ export function SmartCalendar({
     */
 
     // Detail Sheet State
-    const [detailSheetOpen, setDetailSheetOpen] = useState(false);
-    const [detailDate, setDetailDate] = useState<Date | null>(null);
-    const [detailTransactions, setDetailTransactions] = useState<Transaction[]>([]);
+    // const [detailSheetOpen, setDetailSheetOpen] = useState(false);
+    // const [detailDate, setDetailDate] = useState<Date | null>(null);
+    // const [detailTransactions, setDetailTransactions] = useState<Transaction[]>([]);
 
     // Refs and other state
     const containerRef = React.useRef<HTMLDivElement>(null);
@@ -134,16 +144,38 @@ export function SmartCalendar({
         console.log('Resize start:', project.title, e.clientX);
     }, []);
 
+    const [direction, setDirection] = useState(0);
+
     // ナビゲーション
     const handlePrev = () => {
+        setDirection(-1);
         setCurrentMonth(viewMode === 'week' ? subWeeks(currentDate, 1) : subMonths(currentDate, 1));
     };
 
     const handleNext = () => {
+        setDirection(1);
         setCurrentMonth(viewMode === 'week' ? addWeeks(currentDate, 1) : addMonths(currentDate, 1));
     };
 
-    const handleToday = () => setCurrentMonth(new Date());
+    const handleToday = () => {
+        setDirection(0);
+        setCurrentMonth(new Date());
+    };
+
+    // スワイプ操作のバインド
+    const bind = useDrag(
+        ({ direction: [xDir], velocity: [vx], active, event }) => {
+            // ドラッグ開始要素が案件バー（DraggableProjectBar）の場合はスワイプを無効化
+            const target = event.target as HTMLElement;
+            if (target.closest('.project-bar')) return;
+
+            if (!active && Math.abs(vx) > 0.3) {
+                if (xDir > 0) handlePrev();
+                else handleNext();
+            }
+        },
+        { axis: 'x', filterTaps: true }
+    );
 
     // 表示用の段数（最低固定、最大3段）
     const displayRowCount = Math.min(Math.max(maxRowIndex + 1, 1), 3);
@@ -230,9 +262,7 @@ export function SmartCalendar({
             });
 
             if (dayTxs.length > 0) {
-                setDetailDate(date);
-                setDetailTransactions(dayTxs);
-                setDetailSheetOpen(true);
+                onDetailOpenChange?.(true);
             }
         } else {
             lastTapRef.current = { date: dateKey, time: now };
@@ -324,20 +354,27 @@ export function SmartCalendar({
                 </div>
 
                 {/* カレンダーグリッド */}
-                <div ref={containerRef} className="grid grid-cols-7 bg-surface-dark touch-pan-y">
-                    <AnimatePresence mode="popLayout" initial={false}>
-                        {days.map((day) => {
-                            const events = eventsByDate[day.dateKey] || [];
-                            const txSummary = transactionsByDate[day.dateKey];
+                <div
+                    ref={containerRef}
+                    {...bind()}
+                    className="grid grid-cols-7 bg-surface-dark touch-pan-y overflow-hidden"
+                >
+                    <AnimatePresence mode="wait" initial={false}>
+                        <motion.div
+                            key={currentDate.toISOString()}
+                            initial={{ x: direction * 50, opacity: 0 }}
+                            animate={{ x: 0, opacity: 1 }}
+                            exit={{ x: direction * -50, opacity: 0 }}
+                            transition={{ duration: 0.2 }}
+                            className="col-span-7 grid grid-cols-7 w-full h-full"
+                        >
+                            {days.map((day) => {
+                                const events = eventsByDate[day.dateKey] || [];
+                                const txSummary = transactionsByDate[day.dateKey];
 
-                            return (
-                                <motion.div
-                                    key={day.dateKey}
-                                    initial={{ opacity: 0 }}
-                                    animate={{ opacity: 1 }}
-                                    exit={{ opacity: 0 }}
-                                >
+                                return (
                                     <CalendarDayCell
+                                        key={day.dateKey}
                                         day={day}
                                         events={events}
                                         txSummary={txSummary}
@@ -349,9 +386,9 @@ export function SmartCalendar({
                                         onProjectClick={handleProjectSelect}
                                         onResizeStart={handleResizeStart}
                                     />
-                                </motion.div>
-                            );
-                        })}
+                                );
+                            })}
+                        </motion.div>
                     </AnimatePresence>
                 </div>
             </div>
@@ -386,16 +423,19 @@ export function SmartCalendar({
 
             {/* 日付詳細シート */}
             <DateTransactionsSheet
-                open={detailSheetOpen}
-                onOpenChange={setDetailSheetOpen}
+                open={openDetailSheet}
+                onOpenChange={(open) => onDetailOpenChange?.(open)}
                 date={detailDate}
                 transactions={detailTransactions}
                 clients={clients}
                 onTransactionClick={(tx) => {
-                    setDetailSheetOpen(false);
+                    onDetailOpenChange?.(false);
                     onTransactionClick?.(tx);
                 }}
-                onTransactionDelete={onTransactionDelete}
+                onTransactionDelete={(tx) => {
+                    onDetailOpenChange?.(false);
+                    onTransactionDelete?.(tx);
+                }}
             />
         </DndContext>
     );

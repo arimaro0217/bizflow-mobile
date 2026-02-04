@@ -20,6 +20,7 @@ interface TransactionFormProps {
     selectedClient?: Client | null;
     initialTransaction?: Transaction | null;
     onDelete?: (transaction: Transaction) => void;
+    onCancel?: () => void;
 }
 
 export function TransactionForm({
@@ -31,6 +32,7 @@ export function TransactionForm({
     selectedClient = null,
     initialTransaction = null,
     onDelete,
+    onCancel,
 }: TransactionFormProps) {
     const { openKeypad } = useAppStore();
     const [type, setType] = useState<'income' | 'expense'>('income');
@@ -231,15 +233,25 @@ export function TransactionForm({
                                 </div>
 
                                 {/* 登録ボタン */}
-                                <div className="pt-2 pb-4">
-                                    <Button
-                                        onClick={handleSubmit}
-                                        disabled={amount === '0'}
-                                        size="lg"
-                                        className="w-full"
-                                    >
-                                        {initialTransaction ? '更新する' : '登録する'}
-                                    </Button>
+                                <div className="pt-2 pb-4 space-y-3">
+                                    <div className="flex gap-3">
+                                        <Button
+                                            variant="secondary"
+                                            onClick={onCancel}
+                                            size="lg"
+                                            className="flex-1 border-white/10 text-gray-300 hover:bg-white/5"
+                                        >
+                                            キャンセル
+                                        </Button>
+                                        <Button
+                                            onClick={handleSubmit}
+                                            disabled={amount === '0'}
+                                            size="lg"
+                                            className="flex-[2]"
+                                        >
+                                            {initialTransaction ? '更新する' : '登録する'}
+                                        </Button>
+                                    </div>
 
                                     {initialTransaction && (
                                         <button

@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { isSameMonth } from 'date-fns';
+import { isSameMonth, startOfMonth } from 'date-fns';
 import { Plus, Settings, Wallet, LayoutDashboard, LogOut, TrendingUp, PieChart, Repeat, CheckCircle, AlertCircle } from 'lucide-react';
 import { AppLayout } from '../components/layout/AppLayout';
 import { motion } from 'framer-motion';
@@ -16,7 +16,7 @@ import type { Client, Transaction, ClientFormData, TransactionFormData, ProjectC
 import RecurringSettings from './RecurringSettings';
 import SettingsPage from './SettingsPage';
 import ClientManagementPage from './ClientManagementPage';
-import { mapTransactionsForCalendar, getDisplayDate } from '../lib/transactionHelpers';
+import { mapTransactionsForCalendar, getDisplayDate, filterTransactionsByDate } from '../lib/transactionHelpers';
 import { convertProjectToTransaction } from '../lib/projectHelpers';
 import Decimal from 'decimal.js';
 import { toast } from 'sonner';
@@ -28,6 +28,7 @@ export default function Dashboard() {
         toggleViewMode,
         selectedDate,
         setSelectedDate,
+        currentMonth,
     } = useAppStore();
     const { trigger: haptic } = useHaptic();
 
@@ -55,6 +56,12 @@ export default function Dashboard() {
     const { clients, addClient, updateClient, deleteClient, updateClientsOrder } = useClients(user?.uid);
     const { projects, addProject } = useProjects(user?.uid);
     const { updateProject, deleteProject } = useProjectOperations(user?.uid);
+
+    // 日付詳細ポップアップの状態（各カレンダーから引き上げ）
+    const [isDetailSheetOpen, setIsDetailSheetOpen] = useState(false);
+    const [detailDate, setDetailDate] = useState<Date | null>(null);
+    const [detailTransactions, setDetailTransactions] = useState<Transaction[]>([]);
+    const [isEditingFromDetail, setIsEditingFromDetail] = useState(false);
 
     // デバッグ: トランザクションのロード状況を確認
     console.log('[DEBUG] Transactions loaded:', transactions.length, 'viewMode:', viewMode);
@@ -139,6 +146,23 @@ export default function Dashboard() {
     };
 
     const handleEditTransaction = (transaction: Transaction) => {
+        // 案件仮想トランザクションかチェック
+        if (transaction.id.startsWith('project-virtual-')) {
+            const project = projects.find(p => p.id === transaction.projectId);
+            if (project) {
+                handleEditProject(project);
+            }
+            return;
+        }
+
+        // ポップアップを開いた状態から編集に入ったか記録
+        if (isDetailSheetOpen) {
+            setIsEditingFromDetail(true);
+            setIsDetailSheetOpen(false);
+        } else {
+            setIsEditingFromDetail(false);
+        }
+
         setEditingTransaction(transaction);
         // クライアント情報を復元
         if (transaction.clientId && clients.length > 0) {
@@ -148,6 +172,18 @@ export default function Dashboard() {
             setTransactionClient(null);
         }
         setIsTransactionFormOpen(true);
+    };
+
+    const handleCancelTransaction = () => {
+        setIsTransactionFormOpen(false);
+        setEditingTransaction(null);
+        setTransactionClient(null);
+
+        // ポップアップから来た場合は復元
+        if (isEditingFromDetail) {
+            setIsDetailSheetOpen(true);
+            setIsEditingFromDetail(false);
+        }
     };
 
     const handleDeleteTransaction = async (transaction: Transaction) => {
@@ -349,37 +385,43 @@ export default function Dashboard() {
     // カレンダーの日付クリック時の処理
     const handleDateClick = (date: Date) => {
         setSelectedDate(date);
-        // setFormInitialDate(date);
-        // setEditingTransaction(null);
-        // setTransactionClient(null);
-        // setIsTransactionFormOpen(true);
+
+        // その日のトランザクションを取得して詳細表示を更新
+        const dayTxs = filterTransactionsByDate(displayTransactions, date, viewMode);
+        setDetailDate(date);
+        setDetailTransactions(dayTxs);
+        // シートを開くかどうかはカレンダーコンポーネント側でのみ判断される
+        // （ダブルクリックや特定条件でのみ通知が来る）
     };
 
-    // サマリー計算 (表示モードに応じて切り替え)
-    const incomeTotal = useMemo(() =>
-        displayTransactions
+    // サマリー計算 (表示モードおよびカレンダーの表示月に応じて切り替え)
+    const incomeTotal = useMemo(() => {
+        const monthStart = startOfMonth(currentMonth);
+        return displayTransactions
             .filter((t: Transaction) => {
                 const date = getDisplayDate(t, viewMode);
-                return t.type === 'income' && date && isSameMonth(date, selectedDate);
+                return t.type === 'income' && date && isSameMonth(date, monthStart);
             })
-            .reduce((sum: Decimal, t: Transaction) => sum.plus(t.amount || '0'), new Decimal(0))
-        , [displayTransactions, selectedDate, viewMode]);
+            .reduce((sum: Decimal, t: Transaction) => sum.plus(t.amount || '0'), new Decimal(0));
+    }, [displayTransactions, currentMonth, viewMode]);
 
-    const expenseTotal = useMemo(() =>
-        displayTransactions
+    const expenseTotal = useMemo(() => {
+        const monthStart = startOfMonth(currentMonth);
+        return displayTransactions
             .filter((t: Transaction) => {
                 const date = getDisplayDate(t, viewMode);
-                return t.type === 'expense' && date && isSameMonth(date, selectedDate);
+                return t.type === 'expense' && date && isSameMonth(date, monthStart);
             })
-            .reduce((sum: Decimal, t: Transaction) => sum.plus(t.amount || '0'), new Decimal(0))
-        , [displayTransactions, selectedDate, viewMode]);
+            .reduce((sum: Decimal, t: Transaction) => sum.plus(t.amount || '0'), new Decimal(0));
+    }, [displayTransactions, currentMonth, viewMode]);
 
-    // 入金予測（決済日が今月の収入）
-    const cashInTotal = useMemo(() =>
-        displayTransactions
-            .filter((t: Transaction) => t.type === 'income' && t.settlementDate && isSameMonth(t.settlementDate, selectedDate))
-            .reduce((sum: Decimal, t: Transaction) => sum.plus(t.amount || '0'), new Decimal(0))
-        , [displayTransactions, selectedDate]);
+    // 入金予測（決済日が表示月の収入）
+    const cashInTotal = useMemo(() => {
+        const monthStart = startOfMonth(currentMonth);
+        return displayTransactions
+            .filter((t: Transaction) => t.type === 'income' && t.settlementDate && isSameMonth(t.settlementDate, monthStart))
+            .reduce((sum: Decimal, t: Transaction) => sum.plus(t.amount || '0'), new Decimal(0));
+    }, [displayTransactions, currentMonth]);
 
     const sidebarContent = (
         <div className="flex flex-col h-full">
@@ -519,6 +561,11 @@ export default function Dashboard() {
                     onProjectClick={handleEditProject}
                     onTransactionClick={handleEditTransaction}
                     onTransactionDelete={handleDeleteTransaction}
+                    // 日付詳細ポップアップの制御
+                    openDetailSheet={isDetailSheetOpen}
+                    detailDate={detailDate}
+                    detailTransactions={detailTransactions}
+                    onDetailOpenChange={setIsDetailSheetOpen}
                 />
 
                 {/* PC: リスト+サマリー */}
@@ -638,6 +685,7 @@ export default function Dashboard() {
                 selectedClient={transactionClient}
                 initialTransaction={editingTransaction}
                 onDelete={handleDeleteTransaction}
+                onCancel={handleCancelTransaction}
             />
 
             <ClientSheet

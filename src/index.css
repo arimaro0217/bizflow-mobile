@@ -33,18 +33,14 @@ a,
   user-select: none;
 }
 
-/* バウンススクロールの制御 */
+/* バウンススクロールの制御 - モバイル用 */
 html {
-  overscroll-behavior-y: none;
-  /* 全体のバウンスを無効化 */
-  /* Remove overflow: hidden to allow body to scroll naturally if needed */
+  /* PCでは自然なスクロールを許可し、モバイル特有の挙動のみを抑制する */
 }
 
 body {
-  overscroll-behavior-y: none;
-  /* height: 100%; <- Removed to allow growth */
+  /* overflow-y: auto; を維持し、スクロールを許可 */
   overflow-y: auto;
-  /* body内でスクロールを許可 */
   -webkit-overflow-scrolling: touch;
 }
 

@@ -38,6 +38,11 @@ interface CalendarProps {
     /** 日付クリック時のコールバック */
     onDateClick?: (date: Date) => void;
     onTransactionDelete?: (transaction: Transaction) => void;
+    /** 日付詳細ポップアップの管理用（リフティング） */
+    openDetailSheet?: boolean;
+    detailDate?: Date | null;
+    detailTransactions?: Transaction[];
+    onDetailOpenChange?: (open: boolean) => void;
 }
 
 export function Calendar({
@@ -47,16 +52,17 @@ export function Calendar({
     onTransactionClick,
     onDateClick,
     onTransactionDelete,
+    openDetailSheet = false,
+    detailDate = null,
+    detailTransactions = [],
+    onDetailOpenChange,
 }: CalendarProps) {
     const { selectedDate, setSelectedDate, calendarView, setCalendarView, viewMode, currentMonth, setCurrentMonth } = useAppStore();
     // currentMonth をローカル名 currentDate として扱う（既存ロジック維持のため）
     const currentDate = currentMonth;
     const [direction, setDirection] = useState(0);
 
-    // 日付詳細シートの状態
-    const [detailSheetOpen, setDetailSheetOpen] = useState(false);
-    const [detailDate, setDetailDate] = useState<Date | null>(null);
-    const [detailTransactions, setDetailTransactions] = useState<Transaction[]>([]);
+    // ↓ Dashboardに引き上げ（削除）
 
     const weekDays = ['月', '火', '水', '木', '金', '土', '日'];
 
@@ -109,9 +115,12 @@ export function Calendar({
 
             // 取引がある場合のみシートを開く
             if (dayTxs.length > 0) {
-                setDetailDate(day);
-                setDetailTransactions(dayTxs);
-                setDetailSheetOpen(true);
+                // Dashboard側に通知
+                onDetailOpenChange?.(true);
+                // Dashboard側でこれらが更新されるように、Dashboardに handleDateClick で渡すか、
+                // あるいは Dashboard側でも計算し直す。
+                // ここでは Dashboard の onDateClick に任せるのが筋がいい。
+                onDateClick?.(day);
             }
         } else {
             // 次のタップを待つ
@@ -121,7 +130,7 @@ export function Calendar({
 
     // シート内の取引をクリックした時
     const handleTransactionClick = (tx: Transaction) => {
-        setDetailSheetOpen(false);
+        onDetailOpenChange?.(false);
         onTransactionClick?.(tx);
     };
 
@@ -312,13 +321,16 @@ export function Calendar({
 
             {/* 日付詳細シート */}
             <DateTransactionsSheet
-                open={detailSheetOpen}
-                onOpenChange={setDetailSheetOpen}
+                open={openDetailSheet}
+                onOpenChange={(open) => onDetailOpenChange?.(open)}
                 date={detailDate}
                 transactions={detailTransactions}
                 clients={clients}
                 onTransactionClick={handleTransactionClick}
-                onTransactionDelete={onTransactionDelete}
+                onTransactionDelete={(tx) => {
+                    onDetailOpenChange?.(false);
+                    onTransactionDelete?.(tx);
+                }}
             />
         </div>
     );
