@@ -29,6 +29,7 @@ interface ProjectCreateWizardProps {
     onOpenChange: (open: boolean) => void;
     clients: Client[];
     initialDate?: Date;
+    initialClientId?: string; // 新規作成後の戻り用
     initialProject?: Project; // 編集モード用
     onSubmit: (data: {
         clientId: string;
@@ -89,6 +90,7 @@ export function ProjectCreateWizard({
     onOpenChange,
     clients,
     initialDate,
+    initialClientId,
     initialProject,
     onSubmit,
     onCreateClient,
@@ -138,15 +140,24 @@ export function ProjectCreateWizard({
         [setValue]
     );
 
-    // 編集モード時のクライアント復元
+    // 編集モード時または新規作成戻り時のクライアント復元
     useEffect(() => {
-        if (initialProject && clients.length > 0 && !selectedClient) {
+        if (clients.length === 0 || selectedClient) return;
+
+        if (initialProject) {
             const client = clients.find(c => c.id === initialProject.clientId);
             if (client) {
                 setSelectedClient(client);
             }
+        } else if (initialClientId) {
+            const client = clients.find(c => c.id === initialClientId);
+            if (client) {
+                setSelectedClient(client);
+                // フォームの値も更新しておく（useProjectWizardの中で初期化されているかもしれないが念のため）
+                setValue('clientId', initialClientId);
+            }
         }
-    }, [initialProject, clients, selectedClient]);
+    }, [initialProject, initialClientId, clients, selectedClient, setValue]);
 
     // 次へボタン
     const handleNext = useCallback(async () => {

@@ -167,6 +167,7 @@ export function useTransactions(uid: string | undefined): UseTransactionsReturn 
             }
 
             const docRef = await addDoc(collectionRef, {
+                uid,
                 ...data,
                 isSettled: data.isSettled ?? false,
                 createdAt: serverTimestamp(),

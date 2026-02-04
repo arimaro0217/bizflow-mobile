@@ -23,6 +23,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import type { Client } from '../types';
+import { SUBSCRIPTION_LIMITS, CURRENT_PLAN } from '../config/subscription';
 
 // Firestoreから取得した生データの型
 interface FirestoreClient {
@@ -129,19 +130,26 @@ export function useClients(uid: string | undefined): UseClientsReturn {
     // 取引先追加
     const addClient = useCallback(
         async (data: CreateClientInput): Promise<string> => {
+            // 制限チェック
+            const limit = SUBSCRIPTION_LIMITS[CURRENT_PLAN].MAX_CLIENTS;
+            if (state.clients.length >= limit) {
+                throw new Error(`取引先の登録上限(${limit}件)に達しました。`);
+            }
+
             const collectionRef = getCollectionRef();
             if (!collectionRef) {
                 throw new Error('ログインが必要です');
             }
 
             const docRef = await addDoc(collectionRef, {
+                uid,
                 ...data,
                 createdAt: serverTimestamp(),
             });
 
             return docRef.id;
         },
-        [getCollectionRef]
+        [getCollectionRef, state.clients.length]
     );
 
     // 取引先更新

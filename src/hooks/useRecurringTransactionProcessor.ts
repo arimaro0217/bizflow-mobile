@@ -75,6 +75,7 @@ export function useRecurringTransactionProcessor(
             // 1. マスタを作成
             const masterRef = doc(collection(db, 'users', uid, 'recurring_masters'));
             const masterDoc = {
+                uid,
                 title: masterData.title,
                 baseAmount: masterData.baseAmount,
                 type: masterData.type,

@@ -42,6 +42,10 @@ export default function Dashboard() {
     const [transactionToDelete, setTransactionToDelete] = useState<Transaction | null>(null);
     const [clientToDelete, setClientToDelete] = useState<Client | null>(null);
 
+    // ウィザードからの取引先作成フロー制御用
+    const [returnToProjectWizard, setReturnToProjectWizard] = useState(false);
+    const [createdClientId, setCreatedClientId] = useState<string | null>(null);
+
     // 取引フォーム用の初期日付ステート
     const [formInitialDate, setFormInitialDate] = useState(new Date());
 
@@ -162,16 +166,12 @@ export default function Dashboard() {
         try {
             if (editingClient) {
                 // 編集モード
-                updateClient(editingClient.id, {
+                await updateClient(editingClient.id, {
                     name: data.name,
                     closingDay: data.closingDay,
                     paymentMonthOffset: data.paymentMonthOffset,
                     paymentDay: data.paymentDay,
-                }).catch((error) => {
-                    console.error('取引先の更新に失敗:', error);
-                    toast.error('取引先の更新に失敗しました');
                 });
-
                 toast.success('取引先を更新しました');
                 setEditingClient(null);
             } else {
@@ -183,15 +183,29 @@ export default function Dashboard() {
                     paymentDay: data.paymentDay,
                     sortOrder: clients.length, // 末尾に追加
                 };
-                addClient(input).catch((error) => {
-                    console.error('取引先の保存に失敗:', error);
-                    toast.error('取引先の保存に失敗しました');
-                });
+
+                // IDを受け取るためにawaitする
+                const newClientId = await addClient(input);
 
                 toast.success('取引先を保存しました');
+
+                // ウィザードから遷移してきた場合は戻る
+                if (returnToProjectWizard) {
+                    setCreatedClientId(newClientId);
+                    setReturnToProjectWizard(false);
+                    // UI更新の遅延考慮
+                    setTimeout(() => {
+                        setIsProjectWizardOpen(true);
+                    }, 300);
+                }
             }
-        } catch (error) {
+            setIsClientFormOpen(false); // 成功したら閉じる
+        } catch (error: any) {
             console.error('処理エラー:', error);
+            // useClients側でエラーを投げているため、ここでキャッチして表示
+            // エラーメッセージがあれば表示、なければ汎用エラー
+            const message = error instanceof Error ? error.message : '保存に失敗しました';
+            toast.error(message);
         }
     };
 
@@ -549,10 +563,12 @@ export default function Dashboard() {
                 }}
                 clients={clients}
                 initialDate={selectedDate} // 選択中の日付を初期値に
+                initialClientId={createdClientId || undefined} // 新規作成戻り用
                 initialProject={editingProject}
                 onSubmit={handleSaveProject}
                 onCreateClient={() => {
                     setIsProjectWizardOpen(false);
+                    setReturnToProjectWizard(true); // 戻ってくることを記録
                     // 少し待ってから開く（ドロワー被り防止）
                     setTimeout(() => setIsClientFormOpen(true), 300);
                 }}

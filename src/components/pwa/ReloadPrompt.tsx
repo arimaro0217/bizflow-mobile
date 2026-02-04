@@ -1,21 +1,25 @@
 import { useRegisterSW } from 'virtual:pwa-register/react';
-import { useState } from 'react';
+import { useEffect } from 'react';
 
 /**
- * PWA更新通知コンポーネント
- * 新しいバージョンがバックグラウンドでダウンロードされた際、
- * ユーザーに更新を促すToast UIを表示します。
+ * PWA更新通知コンポーネント (Auto Update対応版)
+ * 
+ * - registerType: 'autoUpdate' により、更新があれば自動的にリロードされます。
+ * - iPhoneなどの対策として、アプリがフォアグラウンドに戻った際(visibilitychange)に
+ *   明示的に更新チェックを行います。
+ * - オフライン利用可能になった際のみToastを表示します。
  */
 export function ReloadPrompt() {
     const {
-        needRefresh: [needRefresh, setNeedRefresh],
-        updateServiceWorker,
+        offlineReady: [offlineReady, setOfflineReady],
     } = useRegisterSW({
         onRegisteredSW(swUrl, registration) {
             console.log('[PWA] Service Worker registered:', swUrl);
-            // 1時間ごとに更新をチェック
+
+            // 定期的な更新チェック (1時間ごと)
             if (registration) {
                 setInterval(() => {
+                    console.log('[PWA] Checking for updates (interval)...');
                     registration.update();
                 }, 60 * 60 * 1000);
             }
@@ -25,23 +29,32 @@ export function ReloadPrompt() {
         },
     });
 
-    const [updating, setUpdating] = useState(false);
+    // iPhone対策: アプリに戻ってきた時に更新チェック
+    useEffect(() => {
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                console.log('[PWA] App is visible, checking for updates...');
+                // navigator.serviceWorker.ready を使ってregistrationを取得しupdate
+                if ('serviceWorker' in navigator) {
+                    navigator.serviceWorker.ready.then((registration) => {
+                        registration.update();
+                    });
+                }
+            }
+        };
 
-    const handleUpdate = async () => {
-        setUpdating(true);
-        try {
-            await updateServiceWorker(true);
-        } catch (error) {
-            console.error('Failed to update service worker:', error);
-            setUpdating(false);
-        }
-    };
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        return () => {
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+        };
+    }, []);
 
     const handleClose = () => {
-        setNeedRefresh(false);
+        setOfflineReady(false);
     };
 
-    if (!needRefresh) {
+    // オフライン準備完了通知のみ表示（自動更新モードなので更新通知は不要）
+    if (!offlineReady) {
         return null;
     }
 
@@ -60,25 +73,15 @@ export function ReloadPrompt() {
                         strokeLinecap="round"
                         strokeLinejoin="round"
                     >
-                        <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-                        <path d="M3 3v5h5" />
-                        <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
-                        <path d="M16 16h5v5" />
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                        <polyline points="22 4 12 14.01 9 11.01" />
                     </svg>
                 </div>
                 <div className="reload-prompt__text">
-                    <span className="reload-prompt__title">新しいバージョンが利用可能です</span>
-                    <span className="reload-prompt__subtitle">最新機能をご利用いただけます</span>
+                    <span className="reload-prompt__title">準備完了</span>
+                    <span className="reload-prompt__subtitle">オフラインで利用可能です</span>
                 </div>
                 <div className="reload-prompt__actions">
-                    <button
-                        type="button"
-                        className="reload-prompt__button reload-prompt__button--primary"
-                        onClick={handleUpdate}
-                        disabled={updating}
-                    >
-                        {updating ? '更新中...' : '更新する'}
-                    </button>
                     <button
                         type="button"
                         className="reload-prompt__button reload-prompt__button--secondary"

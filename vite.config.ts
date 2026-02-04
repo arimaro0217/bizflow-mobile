@@ -9,7 +9,7 @@ export default defineConfig({
     VitePWA({
       // フロントエンドで更新を制御するため 'auto' を使用
       injectRegister: 'auto',
-      registerType: 'prompt',
+      registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'pwa-192x192.png', 'pwa-512x512.png'],
       manifest: {
         name: 'BizFlow Mobile',

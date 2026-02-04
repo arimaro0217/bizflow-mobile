@@ -155,6 +155,7 @@ export function useRecurringMasters(uid: string | undefined): UseRecurringMaster
             }
 
             const docRef = await addDoc(collectionRef, {
+                uid,
                 title: data.title,
                 baseAmount: data.baseAmount,
                 type: data.type,

@@ -202,6 +202,7 @@ export function useProjectOperations(uid: string | undefined): UseProjectOperati
                 progress: data.progress || 0,
                 urls: data.urls || [],
 
+                uid, // 認証UIDを追加（セキュリティルールで必要）
                 createdAt: serverTimestamp(),
                 updatedAt: serverTimestamp(),
             };
@@ -242,6 +243,7 @@ export function useProjectOperations(uid: string | undefined): UseProjectOperati
                 isSettled: false,
                 clientId: client.id,
                 memo: `【案件】${data.title}`,
+                uid, // 認証UIDを追加（セキュリティルールで必要）
                 createdAt: serverTimestamp(),
                 updatedAt: serverTimestamp(),
                 // ▼ 案件連動フィールド
