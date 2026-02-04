@@ -394,6 +394,21 @@ export default function Dashboard() {
         // （ダブルクリックや特定条件でのみ通知が来る）
     };
 
+    // カレンダーの日付追加（ダブルタップ等）時の処理
+    const handleDateDoubleClick = (date: Date) => {
+        setSelectedDate(date);
+        setFormInitialDate(date);
+
+        if (viewMode === 'project') {
+            setEditingProject(undefined);
+            setIsProjectWizardOpen(true);
+        } else {
+            setEditingTransaction(null);
+            setTransactionClient(null);
+            setIsTransactionFormOpen(true);
+        }
+    };
+
     // サマリー計算 (表示モードおよびカレンダーの表示月に応じて切り替え)
     const incomeTotal = useMemo(() => {
         const monthStart = startOfMonth(currentMonth);
@@ -558,6 +573,7 @@ export default function Dashboard() {
                     clients={clients}
                     calendarTransactions={mapTransactionsForCalendar(displayTransactions, viewMode)}
                     onDateClick={handleDateClick}
+                    onDateDoubleClick={handleDateDoubleClick}
                     onProjectClick={handleEditProject}
                     onTransactionClick={handleEditTransaction}
                     onTransactionDelete={handleDeleteTransaction}

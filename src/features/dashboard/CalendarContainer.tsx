@@ -26,6 +26,7 @@ interface CalendarContainerProps {
     /** カレンダー表示用の軽量データ */
     calendarTransactions?: { date: Date; type: 'income' | 'expense'; amount?: number }[];
     onDateClick?: (date: Date) => void;
+    onDateDoubleClick?: (date: Date) => void;
     onProjectClick?: (project: Project) => void;
     onTransactionClick?: (transaction: Transaction) => void;
     onTransactionDelete?: (transaction: Transaction) => void;
@@ -42,6 +43,7 @@ export function CalendarContainer({
     clients,
     calendarTransactions,
     onDateClick,
+    onDateDoubleClick,
     onProjectClick,
     onTransactionClick,
     onTransactionDelete,
@@ -141,6 +143,7 @@ export function CalendarContainer({
                             transactions={transactions}
                             clients={clients}
                             onDateClick={onDateClick}
+                            onDateDoubleClick={onDateDoubleClick}
                             onProjectClick={onProjectClick}
                             onTransactionClick={onTransactionClick}
                             onTransactionDelete={onTransactionDelete}
@@ -164,6 +167,7 @@ export function CalendarContainer({
                             clients={clients}
                             onTransactionClick={onTransactionClick}
                             onDateClick={onDateClick}
+                            onDateDoubleClick={onDateDoubleClick}
                             onTransactionDelete={onTransactionDelete}
                             openDetailSheet={openDetailSheet}
                             detailDate={detailDate}

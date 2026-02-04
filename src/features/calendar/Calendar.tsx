@@ -37,6 +37,7 @@ interface CalendarProps {
     onTransactionClick?: (transaction: Transaction) => void;
     /** 日付クリック時のコールバック */
     onDateClick?: (date: Date) => void;
+    onDateDoubleClick?: (date: Date) => void;
     onTransactionDelete?: (transaction: Transaction) => void;
     /** 日付詳細ポップアップの管理用（リフティング） */
     openDetailSheet?: boolean;
@@ -51,6 +52,7 @@ export function Calendar({
     clients = [],
     onTransactionClick,
     onDateClick,
+    onDateDoubleClick,
     onTransactionDelete,
     openDetailSheet = false,
     detailDate = null,
@@ -121,6 +123,9 @@ export function Calendar({
                 // あるいは Dashboard側でも計算し直す。
                 // ここでは Dashboard の onDateClick に任せるのが筋がいい。
                 onDateClick?.(day);
+            } else {
+                // 取引がない場合は登録画面へ
+                onDateDoubleClick?.(day);
             }
         } else {
             // 次のタップを待つ

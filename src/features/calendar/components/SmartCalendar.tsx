@@ -46,6 +46,7 @@ interface SmartCalendarProps {
     projects: Project[];
     transactions: Transaction[];
     onDateClick?: (date: Date) => void;
+    onDateDoubleClick?: (date: Date) => void;
     onProjectClick?: (project: Project) => void;
     onTransactionClick?: (transaction: Transaction) => void;
     onTransactionDelete?: (transaction: Transaction) => void;
@@ -65,6 +66,7 @@ export function SmartCalendar({
     projects,
     transactions,
     onDateClick,
+    onDateDoubleClick,
     onProjectClick,
     onTransactionClick,
     onTransactionDelete,
@@ -263,11 +265,14 @@ export function SmartCalendar({
 
             if (dayTxs.length > 0) {
                 onDetailOpenChange?.(true);
+            } else {
+                // データがない場合は登録画面へ
+                onDateDoubleClick?.(date);
             }
         } else {
             lastTapRef.current = { date: dateKey, time: now };
         }
-    }, [onDateClick, selectedDateKey, transactions]);
+    }, [onDateClick, onDateDoubleClick, onDetailOpenChange, selectedDateKey, transactions, financeViewMode]);
 
     const handleProjectSelect = React.useCallback((project: Project) => {
         setSelectedProject(project);
