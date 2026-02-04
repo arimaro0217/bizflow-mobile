@@ -26,10 +26,12 @@ import {
 import { toast } from 'sonner';
 import { cn } from '../../../lib/utils';
 import { useCalendarLayout, type RenderableEvent } from '../hooks/useCalendarLayout';
-import type { Project, Transaction } from '../../../types';
+import type { Project, Transaction, Client } from '../../../types';
 import { DragOverlayBar } from './DraggableProjectBar';
 import { ProjectPopover } from './ProjectPopover';
+import { DateTransactionsSheet } from './DateTransactionsSheet';
 import CalendarDayCell from './CalendarDayCell';
+import { filterTransactionsByDate } from '../../../lib/transactionHelpers';
 import { useProjectOperations } from '../../../hooks/useProjectOperations';
 import { useAuth } from '../../../features/auth';
 import { useAppStore } from '../../../stores/appStore';
@@ -43,6 +45,7 @@ interface SmartCalendarProps {
     transactions: Transaction[];
     onDateClick?: (date: Date) => void;
     onProjectClick?: (project: Project) => void;
+    clients?: Client[];
 }
 
 // =============================================================================
@@ -54,6 +57,7 @@ export function SmartCalendar({
     transactions,
     onDateClick,
     onProjectClick,
+    clients = [],
 }: SmartCalendarProps) {
     const { user } = useAuth();
     const { updateProject, deleteProject } = useProjectOperations(user?.uid);
@@ -67,6 +71,15 @@ export function SmartCalendar({
     const [activeEvent, setActiveEvent] = useState<RenderableEvent | null>(null);
     const [selectedProject, setSelectedProject] = useState<Project | null>(null);
     const [selectedDateKey, setSelectedDateKey] = useState<string | null>(null);
+
+    // 日付詳細シートの状態
+    const [detailSheetOpen, setDetailSheetOpen] = useState(false);
+    const [detailDate, setDetailDate] = useState<Date | null>(null);
+    const [detailTransactions, setDetailTransactions] = useState<Transaction[]>([]);
+
+    // ダブルタップ検出用
+    const lastTapRef = React.useRef<{ date: string; time: number } | null>(null);
+    const DOUBLE_TAP_DELAY = 300;
 
     // リサイズ用 State & Ref
     const containerRef = React.useRef<HTMLDivElement>(null);
@@ -183,11 +196,36 @@ export function SmartCalendar({
     };
 
     // コールバックのメモ化
-    const handleDateClick = React.useCallback((date: Date) => {
+    const handleDateClick = React.useCallback((date: Date, isDblClick: boolean = false) => {
+        const now = Date.now();
         const dateKey = format(date, 'yyyy-MM-dd');
+        const lastTap = lastTapRef.current;
+
+        // すでに選択されている日付を再度タップしたか、またはダブルタップの場合にポップアップを表示
+        const isSelectedTap = selectedDateKey === dateKey;
+        const isManualDoubleTap = lastTap && lastTap.date === dateKey && (now - lastTap.time) < DOUBLE_TAP_DELAY;
+
         setSelectedDateKey(prev => prev === dateKey ? null : dateKey); // トグル
         onDateClick?.(date);
-    }, [onDateClick]);
+
+        if (isDblClick || isSelectedTap || isManualDoubleTap) {
+            // ポップアップを表示
+            if (!isDblClick) {
+                lastTapRef.current = null;
+            }
+
+            // その日のトランザクションを取得（viewModeを適切に考慮。projectモードでも基本は発生日でフィルタ）
+            const dayTxs = filterTransactionsByDate(transactions, date, 'accrual');
+
+            if (dayTxs.length > 0) {
+                setDetailDate(date);
+                setDetailTransactions(dayTxs);
+                setDetailSheetOpen(true);
+            }
+        } else {
+            lastTapRef.current = { date: dateKey, time: now };
+        }
+    }, [onDateClick, selectedDateKey, transactions]);
 
     const handleProjectSelect = React.useCallback((project: Project) => {
         setSelectedProject(project);
@@ -294,7 +332,8 @@ export function SmartCalendar({
                                         displayRowCount={displayRowCount}
                                         viewMode={viewMode}
                                         isSelected={selectedDateKey === day.dateKey}
-                                        onDateClick={handleDateClick}
+                                        onDateClick={(date) => handleDateClick(date)}
+                                        onDateDoubleClick={(date) => handleDateClick(date, true)}
                                         onProjectClick={handleProjectSelect}
                                         onResizeStart={handleResizeStart}
                                     />
@@ -332,6 +371,18 @@ export function SmartCalendar({
                     }}
                 />
             )}
+
+            {/* 日付詳細シート */}
+            <DateTransactionsSheet
+                open={detailSheetOpen}
+                onOpenChange={setDetailSheetOpen}
+                date={detailDate}
+                transactions={detailTransactions}
+                clients={clients}
+                onTransactionClick={() => {
+                    setDetailSheetOpen(false);
+                }}
+            />
         </DndContext>
     );
 }

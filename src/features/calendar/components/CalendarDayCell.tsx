@@ -18,6 +18,7 @@ interface CalendarDayCellProps {
     viewMode: 'month' | 'week';
     isSelected?: boolean;
     onDateClick?: (date: Date) => void;
+    onDateDoubleClick?: (date: Date) => void;
     onProjectClick?: (project: Project) => void;
     onResizeStart: (project: Project, e: React.PointerEvent) => void;
 }
@@ -34,6 +35,7 @@ const CalendarDayCell = React.memo(function CalendarDayCell({
     viewMode,
     isSelected = false,
     onDateClick,
+    onDateDoubleClick,
     onProjectClick,
     onResizeStart
 }: CalendarDayCellProps) {
@@ -54,6 +56,7 @@ const CalendarDayCell = React.memo(function CalendarDayCell({
                     : 'hover:bg-surface-light/30'
             )}
             onClick={onDateClick}
+            onDoubleClick={onDateDoubleClick}
         >
             {/* Zone A: 日付ヘッダー */}
             <div className="p-1.5 flex justify-center md:justify-start">
@@ -114,7 +117,7 @@ const CalendarDayCell = React.memo(function CalendarDayCell({
 
             {/* Zone C: 資金繰りドット（セル最下部） */}
             {txSummary && (txSummary.income > 0 || txSummary.expense > 0) && (
-                <div className="absolute bottom-1.5 left-0 right-0 flex items-center justify-center gap-1.5 px-1">
+                <div className="absolute bottom-1.5 left-0 right-0 flex items-center justify-center gap-1.5 px-1 pointer-events-none">
                     {txSummary.income > 0 && (
                         <div className="flex items-center gap-0.5 bg-income/10 px-1.5 py-0.5 rounded-full border border-income/20">
                             <div className="w-1.5 h-1.5 rounded-full bg-income" />
@@ -139,8 +142,6 @@ const CalendarDayCell = React.memo(function CalendarDayCell({
     );
 }, (prev, next) => {
     // カスタム比較関数によるパフォーマンス最適化
-    // 日付、表示モード、イベント数、資金繰りデータが変わった場合のみ再レンダリングなど
-    // ここでは厳密な比較はリスクもあるため、主要なpropsの比較を行う
     return (
         prev.day.dateKey === next.day.dateKey &&
         prev.day.isCurrentMonth === next.day.isCurrentMonth &&
@@ -148,15 +149,10 @@ const CalendarDayCell = React.memo(function CalendarDayCell({
         prev.viewMode === next.viewMode &&
         prev.displayRowCount === next.displayRowCount &&
         prev.isSelected === next.isSelected &&
-        // イベント配列の参照比較（useCalendarLayoutで生成される新しい配列になるため、中身を比較すべきだが、
-        // hooks側で適切に制御されていないと毎回変わる可能性がある。
-        // 一旦はデフォルトの比較に任せても良いが、今回は明示的にイベントIDのリストなどで比較すると高速。
-        // リスク回避のため、eventsのlengthと先頭要素のID程度で簡易チェック、あるいは完全一致チェック。
-        // ここでは安全のため、一旦eventsの参照が異なれば再描画とする（hooks側で最適化されている前提）。
         prev.events === next.events &&
         prev.txSummary === next.txSummary &&
-        // 関数はuseCallbackされている前提
         prev.onDateClick === next.onDateClick &&
+        prev.onDateDoubleClick === next.onDateDoubleClick &&
         prev.onProjectClick === next.onProjectClick &&
         prev.onResizeStart === next.onResizeStart
     );

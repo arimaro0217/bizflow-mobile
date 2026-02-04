@@ -263,7 +263,7 @@ export function Calendar({
 
 
                                     {/* Mobile: Amount display - 常に2行で表示 */}
-                                    <div className="flex flex-col items-center gap-0 mt-0.5 md:hidden">
+                                    <div className="flex flex-col items-center gap-0 mt-0.5 md:hidden pointer-events-none">
                                         {/* 収入行（上） */}
                                         <span className={cn(
                                             'text-[9px] font-medium leading-tight',
@@ -289,7 +289,7 @@ export function Calendar({
                                     </div>
 
                                     {/* Desktop: Details */}
-                                    <div className="hidden md:flex flex-col w-full px-1 gap-0.5 mt-auto mb-1">
+                                    <div className="hidden md:flex flex-col w-full px-1 gap-0.5 mt-auto mb-1 pointer-events-none">
                                         {hasIncome && (
                                             <div className="text-[10px] text-income bg-income/10 px-1 py-0.5 rounded truncate w-full text-left">
                                                 +{incomeTotal.toLocaleString()}

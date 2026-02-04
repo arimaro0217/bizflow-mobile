@@ -21,6 +21,7 @@ export interface DroppableCalendarCellProps {
     children: React.ReactNode;
     className?: string;
     onClick?: (date: Date) => void;
+    onDoubleClick?: (date: Date) => void;
 }
 
 export function DroppableCalendarCell({
@@ -29,6 +30,7 @@ export function DroppableCalendarCell({
     children,
     className,
     onClick,
+    onDoubleClick,
 }: DroppableCalendarCellProps) {
     const {
         setNodeRef,
@@ -53,6 +55,7 @@ export function DroppableCalendarCell({
         <div
             ref={setNodeRef}
             onClick={() => onClick?.(date)}
+            onDoubleClick={() => onDoubleClick?.(date)}
             className={cn(
                 'relative', // 親からのスタイルと競合しないよう最低限にするが、SmartCalendar側で制御するため基本はclassNameに任せる
                 highlightClass,

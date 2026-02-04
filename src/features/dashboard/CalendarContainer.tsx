@@ -128,6 +128,7 @@ export function CalendarContainer({
                         <SmartCalendar
                             projects={projects}
                             transactions={transactions}
+                            clients={clients}
                             onDateClick={onDateClick}
                             onProjectClick={onProjectClick}
                         />
