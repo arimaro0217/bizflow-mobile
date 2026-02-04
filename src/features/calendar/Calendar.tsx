@@ -4,6 +4,7 @@ import { useDrag } from '@use-gesture/react';
 import {
     format,
     isSameDay,
+    isSameMonth,
     addWeeks,
     subWeeks,
     addMonths,
