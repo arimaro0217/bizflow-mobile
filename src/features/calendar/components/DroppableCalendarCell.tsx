@@ -7,6 +7,7 @@
 // - ドロップ先の日付情報を親に通知
 // =============================================================================
 
+import React from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { cn } from '../../../lib/utils';
 
@@ -63,4 +64,5 @@ export function DroppableCalendarCell({
     );
 }
 
-export default DroppableCalendarCell;
+// React.memoでラップ
+export default React.memo(DroppableCalendarCell);

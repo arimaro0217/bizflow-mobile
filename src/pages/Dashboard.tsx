@@ -11,8 +11,8 @@ import { TransactionForm } from '../features/transactions';
 import { ToggleSwitch, Skeleton, ConfirmDrawer } from '../components/ui';
 import { useAppStore } from '../stores/appStore';
 import { ProjectCreateWizard } from '../features/projects/components/ProjectCreateWizard';
-import { useTransactions, useClients, type CreateTransactionInput, type CreateClientInput, useHaptic, useProjects } from '../hooks';
-import type { Client, Transaction, ClientFormData, TransactionFormData, ProjectColor } from '../types';
+import { useTransactions, useClients, type CreateTransactionInput, type CreateClientInput, useHaptic, useProjects, useProjectOperations } from '../hooks';
+import type { Client, Transaction, ClientFormData, TransactionFormData, ProjectColor, Project } from '../types';
 import RecurringSettings from './RecurringSettings';
 import SettingsPage from './SettingsPage';
 import ClientManagementPage from './ClientManagementPage';
@@ -49,7 +49,34 @@ export default function Dashboard() {
     const { transactions, loading: transactionsLoading, addTransaction, updateTransaction, deleteTransaction } = useTransactions(user?.uid);
     const { clients, addClient, updateClient, deleteClient, updateClientsOrder } = useClients(user?.uid);
     const { projects, addProject } = useProjects(user?.uid);
+    const { updateProject } = useProjectOperations(user?.uid);
+
+    // デバッグ: トランザクションのロード状況を確認
+    console.log('[DEBUG] Transactions loaded:', transactions.length, 'viewMode:', viewMode);
+    console.log('[DEBUG] Projects loaded:', projects.length);
+    console.log('[DEBUG] Transactions with projectId:', transactions.filter(t => t.projectId).map(t => ({
+        id: t.id,
+        projectId: t.projectId,
+        amount: t.amount,
+        transactionDate: t.transactionDate?.toISOString().split('T')[0],  // YYYY-MM-DD形式
+        settlementDate: t.settlementDate?.toISOString().split('T')[0],    // YYYY-MM-DD形式
+        isEstimate: t.isEstimate
+    })));
+    // 紐づいていない案件を特定
+    const linkedProjectIds = new Set(transactions.filter(t => t.projectId).map(t => t.projectId));
+    const unlinkedProjects = projects.filter(p => !linkedProjectIds.has(p.id));
+    if (unlinkedProjects.length > 0) {
+        console.log('[DEBUG] Projects WITHOUT linked transactions:', unlinkedProjects.map(p => ({
+            id: p.id,
+            title: p.title,
+            status: p.status,
+            amount: p.estimatedAmount
+        })));
+    }
+
+    // 編集中のステート
     const [editingClient, setEditingClient] = useState<Client | null>(null);
+    const [editingProject, setEditingProject] = useState<Project | undefined>(undefined);
 
     const handleFormSubmit = async (data: TransactionFormData) => {
         try {
@@ -64,8 +91,6 @@ export default function Dashboard() {
                 ...(data.clientId && { clientId: data.clientId }),
                 ...(data.memo && { memo: data.memo }),
             };
-
-
 
             const promise = editingTransaction
                 ? updateTransaction(editingTransaction.id, input)
@@ -208,8 +233,15 @@ export default function Dashboard() {
         // ここでは追加のUI更新は不要だが、エラーハンドリングだけしておく
     };
 
-    // 案件作成
-    const handleCreateProject = async (data: {
+    // 案件編集開始
+    const handleEditProject = (project: Project) => {
+        setEditingProject(project);
+        setFormInitialDate(project.startDate || new Date());
+        setIsProjectWizardOpen(true);
+    };
+
+    // 案件作成・更新
+    const handleSaveProject = async (data: {
         clientId: string;
         client: Client;
         title: string;
@@ -218,25 +250,55 @@ export default function Dashboard() {
         endDate: Date;
         amount: string;
         memo?: string;
+        // 機能強化
+        tags: string[];
+        isImportant: boolean;
+        progress: number;
+        urls: string[];
     }) => {
         // エラーハンドリングは呼び出し元の ProjectCreateWizard で行うため、
         // ここでは try-catch せず、エラーをそのまま伝播させる。
-        await addProject({
-            clientId: data.clientId,
-            title: data.title,
-            startDate: data.startDate,
-            endDate: data.endDate,
-            color: data.color,
-            estimatedAmount: data.amount,
-            memo: data.memo,
-        }, data.client);
 
-        haptic('success');
-        toast.success('案件を作成しました', {
-            description: '資金繰り予定も自動作成されました',
-            icon: <CheckCircle className="w-5 h-5" />,
-        });
+        if (editingProject) {
+            // 更新
+            await updateProject(editingProject.id, {
+                title: data.title,
+                startDate: data.startDate,
+                endDate: data.endDate,
+                color: data.color,
+                estimatedAmount: data.amount,
+                memo: data.memo,
+                tags: data.tags,
+                isImportant: data.isImportant,
+                progress: data.progress,
+                urls: data.urls,
+            });
+            toast.success('案件を更新しました');
+        } else {
+            // 新規作成
+            await addProject({
+                clientId: data.clientId,
+                title: data.title,
+                startDate: data.startDate,
+                endDate: data.endDate,
+                color: data.color,
+                estimatedAmount: data.amount,
+                memo: data.memo,
+                tags: data.tags,
+                isImportant: data.isImportant,
+                progress: data.progress,
+                urls: data.urls,
+            }, data.client);
+
+            haptic('success');
+            toast.success('案件を作成しました', {
+                description: '資金繰り予定も自動作成されました',
+                icon: <CheckCircle className="w-5 h-5" />
+            });
+        }
+
         setIsProjectWizardOpen(false);
+        setEditingProject(undefined); // クリア
     };
 
     // カレンダーの日付クリック時の処理
@@ -395,6 +457,7 @@ export default function Dashboard() {
                     calendarTransactions={mapTransactionsForCalendar(transactions, viewMode)}
                     onDateClick={handleDateClick}
                     onTransactionClick={handleEditTransaction}
+                    onProjectClick={handleEditProject}
                 />
 
                 {/* PC: リスト+サマリー */}
@@ -478,10 +541,16 @@ export default function Dashboard() {
             {/* Project Wizard */}
             <ProjectCreateWizard
                 open={isProjectWizardOpen}
-                onOpenChange={setIsProjectWizardOpen}
+                onOpenChange={(open) => {
+                    setIsProjectWizardOpen(open);
+                    if (!open) {
+                        setEditingProject(undefined);
+                    }
+                }}
                 clients={clients}
                 initialDate={selectedDate} // 選択中の日付を初期値に
-                onSubmit={handleCreateProject}
+                initialProject={editingProject}
+                onSubmit={handleSaveProject}
                 onCreateClient={() => {
                     setIsProjectWizardOpen(false);
                     // 少し待ってから開く（ドロワー被り防止）

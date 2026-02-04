@@ -200,13 +200,16 @@ export const ClientSelectField = memo(function ClientSelectField({
             <Drawer.Root open={isOpen} onOpenChange={setIsOpen}>
                 <Drawer.Portal>
                     <Drawer.Overlay className="fixed inset-0 bg-black/60 z-40" />
-                    <Drawer.Content className="fixed bottom-0 left-0 right-0 z-50 bg-background rounded-t-3xl flex flex-col max-h-[85vh]">
+                    <Drawer.Content
+                        className="fixed bottom-0 left-0 right-0 z-50 bg-background rounded-t-3xl flex flex-col max-h-[85vh]"
+                        aria-describedby={undefined}
+                    >
                         {/* ハンドル */}
                         <div className="mx-auto w-12 h-1.5 flex-shrink-0 rounded-full bg-gray-600 my-4" />
 
                         {/* ヘッダー */}
                         <div className="px-4 pb-4 flex items-center justify-between">
-                            <h2 className="text-xl font-bold text-white">取引先を選択</h2>
+                            <Drawer.Title className="text-xl font-bold text-white">取引先を選択</Drawer.Title>
                             <button
                                 onClick={() => setIsOpen(false)}
                                 className="p-2 rounded-full hover:bg-surface-light"

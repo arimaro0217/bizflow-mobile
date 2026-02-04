@@ -31,7 +31,6 @@ export function ViewToggle({ options, value, onChange, className }: ViewTogglePr
             {/* 選択中の背景（アニメーション） */}
             <motion.div
                 className="absolute h-[calc(100%-8px)] bg-surface rounded-lg shadow-sm"
-                layoutId="viewToggleBackground"
                 initial={false}
                 animate={{
                     x: `calc(${activeIndex * 100}% + ${activeIndex * 4}px)`,

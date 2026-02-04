@@ -43,6 +43,9 @@ interface FirestoreProject {
 // =============================================================================
 // 案件作成時の入力データ型
 // =============================================================================
+// =============================================================================
+// 案件作成時の入力データ型
+// =============================================================================
 export interface CreateProjectInput {
     clientId: string;
     title: string;
@@ -52,6 +55,11 @@ export interface CreateProjectInput {
     color?: ProjectColor;
     estimatedAmount: string;
     memo?: string;
+    // 機能強化
+    tags?: string[];
+    isImportant?: boolean;
+    progress?: number;
+    urls?: string[];
 }
 
 // =============================================================================
@@ -68,8 +76,8 @@ interface ProjectsActions {
     createProject: (data: CreateProjectInput, client: Client) => Promise<string>;
     /** 案件を更新 */
     updateProject: (id: string, data: Partial<CreateProjectInput>) => Promise<void>;
-    /** 案件を削除（関連Transaction削除含む） */
-    deleteProject: (id: string) => Promise<void>;
+    /** 案件を削除（関連Transaction削除はオプション） */
+    deleteProject: (id: string, deleteRelatedTransactions?: boolean) => Promise<void>;
     /** 案件ステータスを変更 */
     updateProjectStatus: (id: string, status: ProjectStatus) => Promise<void>;
 }
@@ -122,6 +130,7 @@ export function useProjectOperations(uid: string | undefined): UseProjectOperati
                     return {
                         id: docSnap.id,
                         uid,
+                        // 既存フィールド
                         clientId: data.clientId,
                         title: data.title,
                         startDate: data.startDate?.toDate() ?? null,
@@ -132,6 +141,15 @@ export function useProjectOperations(uid: string | undefined): UseProjectOperati
                         memo: data.memo,
                         createdAt: data.createdAt?.toDate() ?? null,
                         updatedAt: data.updatedAt?.toDate() ?? null,
+                        // 新規フィールド（Firestoreデータから読み込み、なければデフォルト）
+                        // @ts-ignore FirestoreProject型未更新のため
+                        tags: data.tags || [],
+                        // @ts-ignore
+                        isImportant: data.isImportant || false,
+                        // @ts-ignore
+                        progress: data.progress || 0,
+                        // @ts-ignore
+                        urls: data.urls || [],
                     };
                 });
                 setState({ projects, loading: false, error: null });
@@ -178,6 +196,12 @@ export function useProjectOperations(uid: string | undefined): UseProjectOperati
                 color: data.color || 'blue',
                 estimatedAmount: data.estimatedAmount,
                 memo: data.memo || null,
+                // 新規フィールド
+                tags: data.tags || [],
+                isImportant: data.isImportant || false,
+                progress: data.progress || 0,
+                urls: data.urls || [],
+
                 createdAt: serverTimestamp(),
                 updatedAt: serverTimestamp(),
             };
@@ -261,10 +285,10 @@ export function useProjectOperations(uid: string | undefined): UseProjectOperati
     );
 
     // -------------------------------------------------------------------------
-    // 案件削除（関連Transactionも削除）
+    // 案件削除（関連Transactionの削除はオプション）
     // -------------------------------------------------------------------------
     const deleteProject = useCallback(
-        async (id: string): Promise<void> => {
+        async (id: string, deleteRelatedTransactions: boolean = false): Promise<void> => {
             if (!uid) throw new Error('ログインが必要です');
 
             const batch = writeBatch(db);
@@ -273,10 +297,18 @@ export function useProjectOperations(uid: string | undefined): UseProjectOperati
             const projectRef = doc(db, 'users', uid, 'projects', id);
             batch.delete(projectRef);
 
-            // 関連するTransactionを検索して削除
-            // 注意: 実運用ではCloud Functionsでの処理を推奨
-            // ここでは簡易的に、projectIdが一致するものを削除対象とする
-            // （リアルタイムリスナーで取得済みのデータから探すことも可能）
+            // 関連するTransactionも削除する場合
+            if (deleteRelatedTransactions) {
+                const transactionsRef = collection(db, 'users', uid, 'transactions');
+                const q = query(transactionsRef, where('projectId', '==', id));
+                const snapshot = await getDocs(q);
+
+                snapshot.forEach((docSnap) => {
+                    batch.delete(docSnap.ref);
+                });
+
+                console.log(`関連トランザクションも削除: ${snapshot.size}件`);
+            }
 
             await batch.commit();
             console.log(`案件を削除しました: ${id}`);

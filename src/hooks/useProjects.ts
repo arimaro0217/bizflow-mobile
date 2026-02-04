@@ -37,6 +37,11 @@ export interface CreateProjectInput {
     color: ProjectColor;
     estimatedAmount: string;
     memo?: string;
+    // 機能強化
+    tags?: string[];
+    isImportant?: boolean;
+    progress?: number;
+    urls?: string[];
 }
 
 interface ProjectsState {

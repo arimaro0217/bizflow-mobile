@@ -10,14 +10,14 @@
 import { useState, useCallback, useEffect } from 'react';
 import { Drawer } from 'vaul';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronLeft, ChevronRight, Check, Calendar, Wallet, Briefcase } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Check, Calendar, Wallet, Briefcase, Tag, AlertCircle, Link as LinkIcon, Plus, X } from 'lucide-react';
 import { toast } from 'sonner';
-import { useProjectWizard, type WizardStep, STEP_TITLES } from '../hooks/useProjectWizard';
+import { useProjectWizard, type WizardStep, STEP_TITLES, type ProjectWizardFormData } from '../hooks/useProjectWizard';
 import { ClientSelectField } from '../../clients/components/ClientSelectField';
 import { cn } from '../../../lib/utils';
 import { format, addDays } from 'date-fns';
 import { ja } from 'date-fns/locale';
-import type { Client, ProjectColor } from '../../../types';
+import type { Client, ProjectColor, Project } from '../../../types';
 import { DatePicker } from '../../../components/ui/DatePicker';
 
 // =============================================================================
@@ -29,6 +29,7 @@ interface ProjectCreateWizardProps {
     onOpenChange: (open: boolean) => void;
     clients: Client[];
     initialDate?: Date;
+    initialProject?: Project; // 編集モード用
     onSubmit: (data: {
         clientId: string;
         client: Client;
@@ -38,6 +39,12 @@ interface ProjectCreateWizardProps {
         endDate: Date;
         amount: string;
         memo?: string;
+
+        // 機能強化
+        tags: string[];
+        isImportant: boolean;
+        progress: number;
+        urls: string[];
     }) => Promise<void>;
     onCreateClient?: () => void;
 }
@@ -82,6 +89,7 @@ export function ProjectCreateWizard({
     onOpenChange,
     clients,
     initialDate,
+    initialProject,
     onSubmit,
     onCreateClient,
 }: ProjectCreateWizardProps) {
@@ -96,7 +104,8 @@ export function ProjectCreateWizard({
         isStepValid,
         resetWizard,
         triggerHaptic,
-    } = useProjectWizard(initialDate);
+        isEditMode,
+    } = useProjectWizard(initialDate, initialProject);
 
     const { watch, setValue, handleSubmit, formState: { errors } } = form;
 
@@ -106,6 +115,10 @@ export function ProjectCreateWizard({
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isStartDatePickerOpen, setIsStartDatePickerOpen] = useState(false);
     const [isEndDatePickerOpen, setIsEndDatePickerOpen] = useState(false);
+
+    // UI入力用の一時ステート
+    const [tagInput, setTagInput] = useState('');
+    const [urlInput, setUrlInput] = useState('');
 
     // フォーム値を監視
     const watchedValues = watch();
@@ -121,14 +134,19 @@ export function ProjectCreateWizard({
         (clientId: string, client: Client) => {
             setValue('clientId', clientId);
             setSelectedClient(client);
-
-            // 自動入力ロジックを削除（ユーザー要望により手動入力を強制）
-            // if (!watchedValues.title) {
-            //     setValue('title', `${client.name} 案件`);
-            // }
         },
         [setValue]
     );
+
+    // 編集モード時のクライアント復元
+    useEffect(() => {
+        if (initialProject && clients.length > 0 && !selectedClient) {
+            const client = clients.find(c => c.id === initialProject.clientId);
+            if (client) {
+                setSelectedClient(client);
+            }
+        }
+    }, [initialProject, clients, selectedClient]);
 
     // 次へボタン
     const handleNext = useCallback(async () => {
@@ -149,20 +167,34 @@ export function ProjectCreateWizard({
 
     // 送信
     const onFormSubmit = useCallback(
-        async (data: typeof watchedValues) => {
-            if (!selectedClient) return;
+        async (data: ProjectWizardFormData) => {
+            // 編集モードでクライアントが削除されている場合などは考慮が必要だが、
+            // selectedClientがnullでも、IDさえあれば保存は可能にする運用も考えられる。
+            // ここでは安全に selectedClient がある場合のみ進める（新規作成時は必須）
+            // 編集時は selectedClient が未設定（復元前）の可能性もあるので、data.clientId から再検索する手もあるが、
+            // 基本的に useEffect で復元されているはず。
+            if (!selectedClient && !data.clientId) return;
+
+            // クライアントオブジェクトが見つからない場合のフォールバック（新規作成は不可避、更新時はIDのみでもOKな設計なら...）
+            // ここでは安全側に倒して、client必須とする
+            const client = selectedClient || clients.find(c => c.id === data.clientId);
+            if (!client) return;
 
             setIsSubmitting(true);
             try {
                 await onSubmit({
                     clientId: data.clientId,
-                    client: selectedClient,
+                    client: client,
                     title: data.title,
                     color: data.color,
                     startDate: data.startDate,
                     endDate: data.endDate,
                     amount: data.amount,
                     memo: data.memo,
+                    tags: data.tags,
+                    isImportant: data.isImportant,
+                    progress: data.progress,
+                    urls: data.urls,
                 });
                 triggerHaptic();
                 resetWizard();
@@ -179,7 +211,7 @@ export function ProjectCreateWizard({
                     errorMessage = error;
                 }
 
-                toast.error('案件の登録に失敗しました', {
+                toast.error(isEditMode ? '案件の更新に失敗しました' : '案件の登録に失敗しました', {
                     description: errorMessage,
                     duration: 5000,
                     closeButton: true,
@@ -188,17 +220,20 @@ export function ProjectCreateWizard({
                 setIsSubmitting(false);
             }
         },
-        [selectedClient, onSubmit, triggerHaptic, resetWizard, onOpenChange]
+        [selectedClient, clients, onSubmit, triggerHaptic, resetWizard, onOpenChange, isEditMode]
     );
 
     // ウィザードの開閉検知
     useEffect(() => {
         if (open) {
-            // 開いた時にリセット（最新の日付を反映するため）
+            // 開いた時にリセット
             resetWizard();
         } else {
-            // 閉じた時に選択状態クリア
+            // 閉じた時に選択状態クリア（編集モードでない場合のみ？）
+            // 編集中に誤って閉じてもクリアしたほうが安全
             setSelectedClient(null);
+            setTagInput('');
+            setUrlInput('');
         }
     }, [open, resetWizard]);
 
@@ -210,8 +245,45 @@ export function ProjectCreateWizard({
     };
 
     const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const raw = e.target.value.replace(/[^0-9]/g, '');
+        // 全角数字を半角に変換
+        let val = e.target.value.replace(/[０-９]/g, (s) => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
+        const raw = val.replace(/[^0-9]/g, '');
         setValue('amount', raw);
+    };
+
+    // タグ操作
+    const handleAddTag = () => {
+        if (!tagInput.trim()) return;
+        const currentTags = watchedValues.tags || [];
+        if (!currentTags.includes(tagInput.trim())) {
+            setValue('tags', [...currentTags, tagInput.trim()]);
+        }
+        setTagInput('');
+    };
+
+    const handleRemoveTag = (tag: string) => {
+        const currentTags = watchedValues.tags || [];
+        setValue('tags', currentTags.filter(t => t !== tag));
+    };
+
+    // URL操作
+    const handleAddUrl = () => {
+        if (!urlInput.trim()) return;
+        // 簡易URLチェック
+        if (!urlInput.startsWith('http')) {
+            toast.error('URLは http から始めてください');
+            return;
+        }
+        const currentUrls = watchedValues.urls || [];
+        if (!currentUrls.includes(urlInput.trim())) {
+            setValue('urls', [...currentUrls, urlInput.trim()]);
+        }
+        setUrlInput('');
+    };
+
+    const handleRemoveUrl = (url: string) => {
+        const currentUrls = watchedValues.urls || [];
+        setValue('urls', currentUrls.filter(u => u !== url));
     };
 
     return (
@@ -223,7 +295,11 @@ export function ProjectCreateWizard({
                     onClick={(e) => e.stopPropagation()}
                     onPointerDown={(e) => e.stopPropagation()}
                     onTouchStart={(e) => e.stopPropagation()}
+                    aria-describedby={undefined}
                 >
+                    {/* アクセシビリティ用の非表示タイトル */}
+                    <Drawer.Title className="sr-only">案件登録</Drawer.Title>
+
                     {/* ハンドル */}
                     <div className="mx-auto w-12 h-1.5 flex-shrink-0 rounded-full bg-gray-600 my-4" />
 
@@ -274,7 +350,7 @@ export function ProjectCreateWizard({
                         >
                             {isLastStep ? (
                                 <>
-                                    <span>{isSubmitting ? '保存中...' : '完了'}</span>
+                                    <span>{isSubmitting ? '保存中...' : (isEditMode ? '更新' : '完了')}</span>
                                     {!isSubmitting && <Check className="w-5 h-5" />}
                                 </>
                             ) : (
@@ -297,7 +373,7 @@ export function ProjectCreateWizard({
                     </div>
 
                     {/* コンテンツ */}
-                    <div className="flex-1 overflow-y-auto px-6">
+                    <div className="flex-1 overflow-y-auto px-6 pb-20">
                         <AnimatePresence mode="wait" custom={slideDirection}>
                             <motion.div
                                 key={currentStep}
@@ -342,28 +418,107 @@ export function ProjectCreateWizard({
                                             )}
                                         </div>
 
-                                        {/* カラー選択 */}
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-400 mb-3">
-                                                カレンダーの表示色
-                                            </label>
-                                            <div className="flex gap-4">
-                                                {COLOR_OPTIONS.map((option) => (
-                                                    <button
-                                                        key={option.value}
-                                                        type="button"
-                                                        onClick={() => setValue('color', option.value)}
-                                                        className={cn(
-                                                            'w-12 h-12 rounded-full transition-all',
-                                                            option.bg,
-                                                            watchedValues.color === option.value
-                                                                ? 'ring-4 ring-white/30 scale-110'
-                                                                : 'opacity-60 hover:opacity-100'
-                                                        )}
-                                                        title={option.label}
-                                                    />
-                                                ))}
+                                        {/* タグ & 重要フラグ */}
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                            {/* 重要フラグ */}
+                                            <div className="flex items-center justify-between p-4 bg-surface-light rounded-xl border border-white/5">
+                                                <div className="flex items-center gap-3">
+                                                    <div className={cn("p-2 rounded-lg", watchedValues.isImportant ? "bg-red-500/20" : "bg-gray-700/50")}>
+                                                        <AlertCircle className={cn("w-5 h-5", watchedValues.isImportant ? "text-red-400" : "text-gray-400")} />
+                                                    </div>
+                                                    <div>
+                                                        <span className="block text-white font-medium">重要案件</span>
+                                                        <span className="text-xs text-gray-400">リストで目立たせる</span>
+                                                    </div>
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setValue('isImportant', !watchedValues.isImportant)}
+                                                    className={cn(
+                                                        "w-12 h-7 rounded-full transition-colors relative",
+                                                        watchedValues.isImportant ? "bg-red-500" : "bg-gray-600"
+                                                    )}
+                                                >
+                                                    <div className={cn(
+                                                        "absolute top-1 w-5 h-5 rounded-full bg-white transition-all shadow-sm",
+                                                        watchedValues.isImportant ? "left-6" : "left-1"
+                                                    )} />
+                                                </button>
                                             </div>
+
+                                            {/* カラー選択 */}
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-400 mb-3">
+                                                    カレンダーの表示色
+                                                </label>
+                                                <div className="flex gap-3">
+                                                    {COLOR_OPTIONS.map((option) => (
+                                                        <button
+                                                            key={option.value}
+                                                            type="button"
+                                                            onClick={() => setValue('color', option.value)}
+                                                            className={cn(
+                                                                'w-10 h-10 rounded-full transition-all flex items-center justify-center',
+                                                                option.bg,
+                                                                watchedValues.color === option.value
+                                                                    ? 'ring-4 ring-white/20 scale-110 shadow-lg'
+                                                                    : 'opacity-60 hover:opacity-100'
+                                                            )}
+                                                            title={option.label}
+                                                        >
+                                                            {watchedValues.color === option.value && <Check className="w-5 h-5 text-white" />}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* タグ入力 */}
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-400 mb-2">
+                                                タグ（任意）
+                                            </label>
+                                            <div className="flex gap-2 mb-3">
+                                                <input
+                                                    type="text"
+                                                    value={tagInput}
+                                                    onChange={(e) => setTagInput(e.target.value)}
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === 'Enter') {
+                                                            e.preventDefault();
+                                                            handleAddTag();
+                                                        }
+                                                    }}
+                                                    placeholder="例: リフォーム, 緊急"
+                                                    className="flex-1 h-12 px-4 bg-surface-light rounded-xl text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={handleAddTag}
+                                                    className="w-12 h-12 flex items-center justify-center bg-surface-light rounded-xl text-primary-400 hover:bg-primary-500/10 hover:text-primary-300 transition-colors"
+                                                >
+                                                    <Plus className="w-6 h-6" />
+                                                </button>
+                                            </div>
+
+                                            {/* タグリスト */}
+                                            {(watchedValues.tags || []).length > 0 && (
+                                                <div className="flex flex-wrap gap-2">
+                                                    {(watchedValues.tags || []).map((tag, i) => (
+                                                        <div key={i} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-700/50 border border-white/5 text-sm text-gray-200">
+                                                            <Tag className="w-3.5 h-3.5 text-gray-400" />
+                                                            <span>{tag}</span>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleRemoveTag(tag)}
+                                                                className="ml-1 p-0.5 rounded-full hover:bg-white/10 text-gray-400 hover:text-white"
+                                                            >
+                                                                <X className="w-3 h-3" />
+                                                            </button>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 )}
@@ -443,13 +598,16 @@ export function ProjectCreateWizard({
                                             <div className="flex items-center gap-3 mb-2">
                                                 <Briefcase className="w-5 h-5 text-primary-400" />
                                                 <span className="text-white font-medium">{watchedValues.title}</span>
+                                                {watchedValues.isImportant && (
+                                                    <span className="bg-red-500/20 text-red-300 text-[10px] px-1.5 py-0.5 rounded border border-red-500/30">重要</span>
+                                                )}
                                             </div>
                                             <div className="flex items-center gap-3 text-gray-400 text-sm">
                                                 <Calendar className="w-4 h-4" />
                                                 <span>
-                                                    {watchedValues.startDate && format(watchedValues.startDate, 'M月d日', { locale: ja })}
+                                                    {watchedValues.startDate && format(watchedValues.startDate, 'M/d', { locale: ja })}
                                                     {' → '}
-                                                    {watchedValues.endDate && format(watchedValues.endDate, 'M月d日', { locale: ja })}
+                                                    {watchedValues.endDate && format(watchedValues.endDate, 'M/d', { locale: ja })}
                                                 </span>
                                             </div>
                                         </div>
@@ -473,6 +631,27 @@ export function ProjectCreateWizard({
                                             {errors.amount && (
                                                 <p className="text-expense text-sm mt-1">{errors.amount.message}</p>
                                             )}
+                                        </div>
+
+                                        {/* 進捗率スライダー */}
+                                        <div>
+                                            <div className="flex items-center justify-between mb-2">
+                                                <label className="block text-sm font-medium text-gray-400">
+                                                    進捗状況
+                                                </label>
+                                                <span className="text-primary-400 font-bold">{watchedValues.progress}%</span>
+                                            </div>
+                                            <div className="h-10 px-2 bg-surface-light rounded-xl flex items-center">
+                                                <input
+                                                    type="range"
+                                                    min="0"
+                                                    max="100"
+                                                    step="5"
+                                                    value={watchedValues.progress}
+                                                    onChange={(e) => setValue('progress', parseInt(e.target.value))}
+                                                    className="w-full accent-primary-500 h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer"
+                                                />
+                                            </div>
                                         </div>
 
                                         {/* 入金予測カード */}
@@ -500,6 +679,58 @@ export function ProjectCreateWizard({
                                                 </motion.div>
                                             )}
                                         </AnimatePresence>
+
+                                        {/* 関連リンク */}
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-400 mb-2">
+                                                関連リンク（任意）
+                                            </label>
+                                            <div className="flex gap-2 mb-3">
+                                                <input
+                                                    type="text"
+                                                    value={urlInput}
+                                                    onChange={(e) => setUrlInput(e.target.value)}
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === 'Enter') {
+                                                            e.preventDefault();
+                                                            handleAddUrl();
+                                                        }
+                                                    }}
+                                                    placeholder="https://..."
+                                                    className="flex-1 h-12 px-4 bg-surface-light rounded-xl text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={handleAddUrl}
+                                                    className="w-12 h-12 flex items-center justify-center bg-surface-light rounded-xl text-primary-400 hover:bg-primary-500/10 hover:text-primary-300 transition-colors"
+                                                >
+                                                    <LinkIcon className="w-5 h-5" />
+                                                </button>
+                                            </div>
+
+                                            {/* URLリスト */}
+                                            {(watchedValues.urls || []).length > 0 && (
+                                                <div className="space-y-2">
+                                                    {(watchedValues.urls || []).map((url, i) => (
+                                                        <div key={i} className="flex items-center justify-between px-3 py-2 rounded-lg bg-gray-700/50 border border-white/5 overflow-hidden">
+                                                            <div className="flex items-center gap-2 overflow-hidden">
+                                                                <LinkIcon className="w-3.5 h-3.5 text-blue-400 flex-shrink-0" />
+                                                                <a href={url} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-300 hover:underline truncate">
+                                                                    {url}
+                                                                </a>
+                                                            </div>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleRemoveUrl(url)}
+                                                                className="ml-2 p-1 rounded-full hover:bg-white/10 text-gray-400 hover:text-white flex-shrink-0"
+                                                            >
+                                                                <X className="w-3.5 h-3.5" />
+                                                            </button>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
 
                                         {/* メモ */}
                                         <div>

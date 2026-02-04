@@ -37,6 +37,13 @@ interface FirestoreTransaction {
     memo?: string;
     createdAt: Timestamp | null;
     updatedAt: Timestamp | null;
+    // 定期取引の親子関係管理用
+    recurringMasterId?: string;
+    recurringInstanceDate?: Timestamp;
+    isDetached?: boolean;
+    // 案件連動用
+    projectId?: string;
+    isEstimate?: boolean;
 }
 
 // 新規作成時の入力データ型
@@ -127,6 +134,13 @@ export function useTransactions(uid: string | undefined): UseTransactionsReturn 
                         memo: data.memo,
                         createdAt: data.createdAt?.toDate() ?? null,
                         updatedAt: data.updatedAt?.toDate() ?? null,
+                        // 定期取引フィールド
+                        recurringMasterId: data.recurringMasterId,
+                        recurringInstanceDate: data.recurringInstanceDate?.toDate(),
+                        isDetached: data.isDetached,
+                        // 案件連動フィールド
+                        projectId: data.projectId,
+                        isEstimate: data.isEstimate,
                     };
                 });
                 setState({ transactions, loading: false, error: null });

@@ -41,6 +41,7 @@
 // </DndContext>
 // =============================================================================
 
+import React from 'react';
 import { useDraggable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 import { cn } from '../../../lib/utils';
@@ -143,12 +144,20 @@ export function DraggableProjectBar({
     // 今回は「SmartCalendarでの実装計画」に基づき、
     // ハンドルを表示し、それをドラッグした際の処理をここに追加する。
 
+    // ステータスに応じたスタイル
+    const statusStyles = {
+        completed: 'opacity-60', // 完了済みは少し薄く
+        confirmed: '', // 受注確定は通常表示
+        draft: 'border-dashed', // 見込みは破線
+    };
+    const statusStyle = statusStyles[project.status as keyof typeof statusStyles] || '';
+
     return (
         <div
             ref={setNodeRef}
             style={style}
             className={cn(
-                'absolute left-0 right-0 h-4 px-1 shadow-sm border-t group select-none',
+                'absolute left-0 right-0 h-4 shadow-sm border-t group select-none flex flex-col justify-center',
                 'touch-none', // iOSでのスクロール防止等
                 colors.bg,
                 colors.text,
@@ -156,8 +165,10 @@ export function DraggableProjectBar({
                 roundedClass,
                 marginClass,
                 placeholderOpacity,
-                isDragging && 'shadow-lg scale-105 z-50',
-                !isDragging && 'hover:brightness-110 transition-all'
+                statusStyle,
+                isDragging && 'shadow-lg scale-105 z-50 ring-2 ring-white',
+                !isDragging && 'hover:brightness-110 transition-all',
+                project.isImportant && 'ring-1 ring-red-400/50 ring-inset'
             )}
             {...attributes}
             {...listeners}
@@ -166,11 +177,49 @@ export function DraggableProjectBar({
                 if (!isDragging) onClick?.();
             }}
         >
-            <div className="flex items-center w-full h-full overflow-hidden">
-                <span className="text-[10px] font-medium truncate leading-none">
-                    {isStart && project.title}
+            <div className="flex items-center w-full h-full overflow-hidden px-1 gap-0.5 relative z-10">
+                {/* 左端: 重要アイコン */}
+                {isStart && project.isImportant && (
+                    <div className="flex-shrink-0 text-red-200 animate-pulse">
+                        <svg width="6" height="6" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+                            <circle cx="12" cy="12" r="10"></circle>
+                        </svg>
+                    </div>
+                )}
+
+                {/* ステータスバッジ（開始セルのみ） */}
+                {isStart && project.status === 'draft' && (
+                    <span className="flex-shrink-0 text-[7px] px-1 py-0 rounded bg-yellow-500/30 text-yellow-100 font-medium">
+                        見込
+                    </span>
+                )}
+                {isStart && project.status === 'completed' && (
+                    <span className="flex-shrink-0 text-[7px] px-1 py-0 rounded bg-emerald-500/30 text-emerald-100 font-medium">
+                        完
+                    </span>
+                )}
+
+                {/* タイトル */}
+                <span className={cn(
+                    "text-[9px] font-medium truncate leading-none flex-1",
+                    !isStart && "opacity-70" // 続きのバーは少し薄く
+                )}>
+                    {isStart ? project.title : ''}
                 </span>
             </div>
+
+            {/* 下部: 進捗バー (高さ2px) */}
+            {project.progress !== undefined && project.progress > 0 && (
+                <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-black/15 rounded-b">
+                    <div
+                        className={cn(
+                            "h-full rounded-b transition-all duration-300",
+                            project.progress === 100 ? 'bg-emerald-300' : 'bg-white/80'
+                        )}
+                        style={{ width: `${project.progress}%` }}
+                    />
+                </div>
+            )}
 
             {/* リサイズハンドル (右端) */}
             {isEnd && !isDragging && (
@@ -216,4 +265,5 @@ export function DragOverlayBar({ project }: DragOverlayBarProps) {
     );
 }
 
-export default DraggableProjectBar;
+// React.memoでラップして不要な再レンダリングを防止
+export default React.memo(DraggableProjectBar);

@@ -8,11 +8,11 @@
 // =============================================================================
 
 import { useState, useCallback, useMemo } from 'react';
-import { useForm, type UseFormReturn } from 'react-hook-form';
+import { useForm, type UseFormReturn, type Resolver } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { calculateSettlementDate } from '../../../lib/settlement';
-import type { Client } from '../../../types';
+import type { Client, Project } from '../../../types';
 
 // =============================================================================
 // スキーマ定義
@@ -24,13 +24,21 @@ export const projectWizardSchema = z.object({
     title: z.string().min(1, '案件名を入力してください'),
     color: z.enum(['blue', 'orange', 'green', 'purple', 'gray'] as const),
 
+    // 機能強化: タグ・重要フラグ
+    tags: z.array(z.string()).default([]),
+    isImportant: z.boolean().default(false),
+
     // Step 2: When
     startDate: z.date(),
     endDate: z.date(),
 
-    // Step 3: How Much
+    // Step 3: How Much & Details
     amount: z.string().min(1, '金額を入力してください'),
     memo: z.string().optional(),
+
+    // 機能強化: 進捗率・関連リンク
+    progress: z.number().min(0).max(100).default(0),
+    urls: z.array(z.string().url('正しいURLを入力してください')).default([]), // 配列内の各文字列がURL形式
 }).refine((data) => {
     // 終了日は開始日以降であること
     if (data.startDate && data.endDate) {
@@ -51,9 +59,9 @@ export type ProjectWizardFormData = z.infer<typeof projectWizardSchema>;
 export type WizardStep = 1 | 2 | 3;
 
 export const STEP_TITLES: Record<WizardStep, string> = {
-    1: '取引先と案件名',
-    2: '期間設定',
-    3: '金額と確認',
+    1: '案件の基本情報',
+    2: '期間の設定',
+    3: '詳細と確認',
 };
 
 // =============================================================================
@@ -91,6 +99,9 @@ export interface UseProjectWizardReturn {
 
     // Haptic feedback
     triggerHaptic: () => void;
+
+    // 編集モード判定
+    isEditMode: boolean;
 }
 
 // =============================================================================
@@ -98,22 +109,44 @@ export interface UseProjectWizardReturn {
 // =============================================================================
 
 export function useProjectWizard(
-    initialDate?: Date
+    initialDate?: Date,
+    initialProject?: Project | null // 編集モード用
 ): UseProjectWizardReturn {
     const [currentStep, setCurrentStep] = useState<WizardStep>(1);
 
     // フォーム初期化
     const form = useForm<ProjectWizardFormData>({
-        resolver: zodResolver(projectWizardSchema),
-        defaultValues: {
-            clientId: '',
-            title: '',
-            color: 'blue',
-            startDate: initialDate ?? new Date(),
-            endDate: initialDate ?? new Date(),
-            amount: '',
-            memo: '',
-        },
+        resolver: zodResolver(projectWizardSchema) as Resolver<ProjectWizardFormData>,
+        defaultValues: useMemo(() => {
+            if (initialProject) {
+                return {
+                    clientId: initialProject.clientId,
+                    title: initialProject.title,
+                    color: initialProject.color,
+                    startDate: initialProject.startDate || new Date(),
+                    endDate: initialProject.endDate || new Date(),
+                    amount: initialProject.estimatedAmount,
+                    memo: initialProject.memo || '',
+                    tags: initialProject.tags || [],
+                    isImportant: initialProject.isImportant || false,
+                    progress: initialProject.progress || 0,
+                    urls: initialProject.urls || [],
+                };
+            }
+            return {
+                clientId: '',
+                title: '',
+                color: 'blue',
+                startDate: initialDate ?? new Date(),
+                endDate: initialDate ?? new Date(),
+                amount: '',
+                memo: '',
+                tags: [],
+                isImportant: false,
+                progress: 0,
+                urls: [],
+            };
+        }, [initialProject, initialDate]),
         mode: 'onChange',
     });
 
@@ -132,9 +165,9 @@ export function useProjectWizard(
     // ステップ別のフィールド定義
     // -------------------------------------------------------------------------
     const stepFields: Record<WizardStep, (keyof ProjectWizardFormData)[]> = {
-        1: ['clientId', 'title', 'color'],
+        1: ['clientId', 'title', 'color', 'tags', 'isImportant'],
         2: ['startDate', 'endDate'],
-        3: ['amount'],
+        3: ['amount', 'progress', 'urls', 'memo'], // memoもStep3で検証
     };
 
     // -------------------------------------------------------------------------
@@ -150,6 +183,7 @@ export function useProjectWizard(
                 case 2:
                     return Boolean(values.startDate && values.endDate);
                 case 3:
+                    // 金額チェック + URLの形式用簡易チェック（詳細はzodでやるが、ボタン活性化用）
                     return Boolean(values.amount && parseFloat(values.amount) > 0);
                 default:
                     return false;
@@ -222,17 +256,37 @@ export function useProjectWizard(
     // ウィザードリセット
     // -------------------------------------------------------------------------
     const resetWizard = useCallback(() => {
-        reset({
-            clientId: '',
-            title: '',
-            color: 'blue',
-            startDate: initialDate ?? new Date(),
-            endDate: initialDate ?? new Date(),
-            amount: '',
-            memo: '',
-        });
+        if (initialProject) {
+            reset({
+                clientId: initialProject.clientId,
+                title: initialProject.title,
+                color: initialProject.color,
+                startDate: initialProject.startDate || new Date(),
+                endDate: initialProject.endDate || new Date(),
+                amount: initialProject.estimatedAmount,
+                memo: initialProject.memo || '',
+                tags: initialProject.tags || [],
+                isImportant: initialProject.isImportant || false,
+                progress: initialProject.progress || 0,
+                urls: initialProject.urls || [],
+            });
+        } else {
+            reset({
+                clientId: '',
+                title: '',
+                color: 'blue',
+                startDate: initialDate ?? new Date(),
+                endDate: initialDate ?? new Date(),
+                amount: '',
+                memo: '',
+                tags: [],
+                isImportant: false,
+                progress: 0,
+                urls: [],
+            });
+        }
         setCurrentStep(1);
-    }, [reset, initialDate]);
+    }, [reset, initialDate, initialProject]);
 
     // -------------------------------------------------------------------------
     // メモ化された値
@@ -249,6 +303,7 @@ export function useProjectWizard(
             isStepValid,
             resetWizard,
             triggerHaptic,
+            isEditMode: !!initialProject,
         }),
         [
             form,
@@ -259,6 +314,7 @@ export function useProjectWizard(
             isStepValid,
             resetWizard,
             triggerHaptic,
+            initialProject,
         ]
     );
 }

@@ -40,6 +40,13 @@ export interface Project {
     color: ProjectColor;             // カレンダー表示色
     estimatedAmount: string;         // 見積金額（decimal.js用にstring）
     memo?: string;                   // メモ
+
+    // ▼ 機能強化フィールド (Phase 4)
+    tags?: string[];                 // タグ（例: リフォーム, 緊急）
+    progress?: number;               // 進捗率 0-100
+    urls?: string[];                 // 関連リンク
+    isImportant?: boolean;           // 重要フラグ
+
     createdAt: Date | null;
     updatedAt: Date | null;
 }
