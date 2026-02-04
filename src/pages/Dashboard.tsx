@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { isSameMonth, format } from 'date-fns';
+import { isSameMonth } from 'date-fns';
 import { Plus, Settings, Wallet, LayoutDashboard, LogOut, TrendingUp, PieChart, Repeat, CheckCircle, AlertCircle } from 'lucide-react';
 import { AppLayout } from '../components/layout/AppLayout';
 import { motion } from 'framer-motion';
@@ -16,8 +16,7 @@ import type { Client, Transaction, ClientFormData, TransactionFormData, ProjectC
 import RecurringSettings from './RecurringSettings';
 import SettingsPage from './SettingsPage';
 import ClientManagementPage from './ClientManagementPage';
-import { mapTransactionsForCalendar, getDisplayDate } from '../lib/transactionHelpers';
-import { convertProjectToTransaction } from '../lib/projectHelpers';
+import { mapTransactionsForCalendar } from '../lib/transactionHelpers';
 import Decimal from 'decimal.js';
 import { toast } from 'sonner';
 
@@ -67,32 +66,16 @@ export default function Dashboard() {
         settlementDate: t.settlementDate?.toISOString().split('T')[0],    // YYYY-MM-DD形式
         isEstimate: t.isEstimate
     })));
-    // 紐づいていない案件を特定
-    // 紐づいていない案件を特定し、仮想トランザクションとして統合
-    const linkedProjectIds = new Set(transactions.filter(t => t.projectId).map(t => t.projectId));
-    const unlinkedProjects = projects.filter(p => !linkedProjectIds.has(p.id));
-
-    // 表示用の統合トランザクションリスト（実データ + 案件見込み）
+    // 表示用のトランザクション（案件連動の見込みデータを含む）
     const displayTransactions = useMemo(() => {
-        const virtualTransactions = unlinkedProjects
-            .filter(p => p.endDate) // 日付があるもののみ
-            .map(convertProjectToTransaction);
-
-        const combined = [...transactions, ...virtualTransactions];
-
-        // DEBUG: 日付データの検証
-        console.log('[DEBUG] Display Transactions Sample:', combined.slice(0, 3).map(t => ({
-            id: t.id,
-            isEstimate: t.isEstimate,
-            type: t.type,
-            transactionDate: t.transactionDate ? format(t.transactionDate, 'yyyy-MM-dd') : 'null',
-            settlementDate: t.settlementDate ? format(t.settlementDate, 'yyyy-MM-dd') : 'null',
-            viewMode,
-            displayDate: t.transactionDate ? format(getDisplayDate(t, viewMode) || new Date(), 'yyyy-MM-dd') : 'N/A'
-        })));
-
-        return combined;
-    }, [transactions, unlinkedProjects, viewMode]);
+        // Firestoreから取得した全トランザクション（案件連動の見込みデータも含まれる）
+        // 案件作成時に自動的にトランザクションが生成されるため、二重表示を避けるためここでの統合を中止しました。
+        return [...transactions].sort((a, b) => {
+            const dateA = a.transactionDate || new Date(0);
+            const dateB = b.transactionDate || new Date(0);
+            return dateB.getTime() - dateA.getTime();
+        });
+    }, [transactions]);
 
     // 編集中のステート
     const [editingClient, setEditingClient] = useState<Client | null>(null);
