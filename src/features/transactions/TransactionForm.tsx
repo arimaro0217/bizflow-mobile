@@ -19,6 +19,7 @@ interface TransactionFormProps {
     initialDate?: Date;
     selectedClient?: Client | null;
     initialTransaction?: Transaction | null;
+    onDelete?: (transaction: Transaction) => void;
 }
 
 export function TransactionForm({
@@ -29,6 +30,7 @@ export function TransactionForm({
     initialDate = new Date(),
     selectedClient = null,
     initialTransaction = null,
+    onDelete,
 }: TransactionFormProps) {
     const { openKeypad } = useAppStore();
     const [type, setType] = useState<'income' | 'expense'>('income');
@@ -238,6 +240,18 @@ export function TransactionForm({
                                     >
                                         {initialTransaction ? '更新する' : '登録する'}
                                     </Button>
+
+                                    {initialTransaction && onDelete && (
+                                        <button
+                                            onClick={() => {
+                                                onDelete(initialTransaction);
+                                                onOpenChange(false);
+                                            }}
+                                            className="w-full py-4 text-red-400 font-medium hover:bg-white/5 rounded-xl transition-colors"
+                                        >
+                                            この取引を削除
+                                        </button>
+                                    )}
                                 </div>
                             </div>
                         </div>

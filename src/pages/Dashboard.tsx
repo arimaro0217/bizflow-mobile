@@ -637,6 +637,7 @@ export default function Dashboard() {
                 initialDate={formInitialDate}
                 selectedClient={transactionClient}
                 initialTransaction={editingTransaction}
+                onDelete={handleDeleteTransaction}
             />
 
             <ClientSheet
