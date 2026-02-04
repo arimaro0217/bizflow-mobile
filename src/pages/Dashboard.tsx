@@ -170,23 +170,11 @@ export default function Dashboard() {
                 });
             } else if (projectId) {
                 // 案件に紐づく実トランザクションの削除
-                // 他に紐づくトランザクションがあるか確認
-                const otherTxs = transactions.filter(t => t.projectId === projectId && t.id !== transactionToDelete.id);
-
-                if (otherTxs.length > 0) {
-                    // 他にもある場合は、このトランザクションだけ削除
-                    await deleteTransaction(transactionToDelete.id);
-                    toast.success('取引を削除しました', {
-                        icon: <CheckCircle className="w-5 h-5" />,
-                    });
-                } else {
-                    // これが最後の一つなら、案件ごと削除しないと仮想トランザクションとして復活してしまう
-                    // → ユーザーの意図としては「この案件をやめる」可能性が高い
-                    await deleteProject(projectId, true);
-                    toast.success('案件と関連取引を削除しました', {
-                        icon: <CheckCircle className="w-5 h-5" />,
-                    });
-                }
+                // 単純にトランザクションのみ削除する（結果として仮想トランザクションが復活する＝見込みに戻る）
+                await deleteTransaction(transactionToDelete.id);
+                toast.success('取引を削除しました', {
+                    icon: <CheckCircle className="w-5 h-5" />,
+                });
             } else {
                 // 通常のトランザクション削除
                 await deleteTransaction(transactionToDelete.id);
@@ -684,10 +672,8 @@ export default function Dashboard() {
                 onOpenChange={(open) => !open && setTransactionToDelete(null)}
                 title="取引を削除しますか？"
                 description={
-                    transactionToDelete?.projectId &&
-                        (transactionToDelete.id.startsWith('project-virtual-') ||
-                            !transactions.some(t => t.projectId === transactionToDelete.projectId && t.id !== transactionToDelete.id))
-                        ? "この取引は案件に紐づいています。削除すると、関連する案件情報も完全に削除されます。"
+                    transactionToDelete?.id.startsWith('project-virtual-')
+                        ? "この取引は案件そのものです。削除すると、案件情報が完全に削除されます。"
                         : "この操作は取り消せません。本当に削除してもよろしいですか？"
                 }
                 confirmLabel="削除する"
