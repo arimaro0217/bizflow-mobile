@@ -11,12 +11,11 @@ import { Skeleton } from '../../components/ui';
 interface TransactionListProps {
     transactions: Transaction[];
     loading?: boolean;
-    viewMode?: 'accrual' | 'cash' | 'project';
     onEdit?: (transaction: Transaction) => void;
     onDelete?: (transaction: Transaction) => void;
 }
 
-export function TransactionList({ transactions, loading, viewMode = 'accrual', onEdit, onDelete }: TransactionListProps) {
+export function TransactionList({ transactions, loading, onEdit, onDelete }: TransactionListProps) {
     if (loading) {
         return (
             <div className="space-y-4">
@@ -47,7 +46,6 @@ export function TransactionList({ transactions, loading, viewMode = 'accrual', o
                     >
                         <TransactionItem
                             transaction={transaction}
-                            viewMode={viewMode}
                             onEdit={onEdit}
                             onDelete={onDelete}
                         />
@@ -60,12 +58,11 @@ export function TransactionList({ transactions, loading, viewMode = 'accrual', o
 
 interface TransactionItemProps {
     transaction: Transaction;
-    viewMode: 'accrual' | 'cash' | 'project';
     onEdit?: (transaction: Transaction) => void;
     onDelete?: (transaction: Transaction) => void;
 }
 
-function TransactionItem({ transaction, viewMode, onEdit, onDelete }: TransactionItemProps) {
+function TransactionItem({ transaction, onEdit, onDelete }: TransactionItemProps) {
     const [offsetX, setOffsetX] = useState(0);
 
     const bind = useDrag(

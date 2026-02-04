@@ -537,7 +537,6 @@ export default function Dashboard() {
                             <TransactionList
                                 transactions={displayTransactions}
                                 loading={transactionsLoading}
-                                viewMode={viewMode}
                                 onEdit={handleEditTransaction}
                                 onDelete={handleDeleteTransaction}
                             />

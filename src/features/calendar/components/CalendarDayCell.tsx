@@ -2,7 +2,7 @@ import React from 'react';
 import { format } from 'date-fns';
 import { cn } from '../../../lib/utils';
 import type { Project } from '../../../types';
-import type { CalendarDay, RenderableEvent, DailyTransactionSummary } from '../hooks/useCalendarLayout';
+import type { CalendarDay, RenderableEvent, DailyTransactionSummary } from '../types';
 import DroppableCalendarCell from './DroppableCalendarCell';
 import DraggableProjectBar from './DraggableProjectBar';
 

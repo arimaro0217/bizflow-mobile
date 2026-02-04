@@ -16,13 +16,20 @@ export function getDisplayDate(
     transaction: Transaction,
     viewMode: ViewMode
 ): Date | null {
-    if (viewMode === 'accrual' || viewMode === 'project') {
+    // プロジェクトモード：発生主義（取引日/納品日）として扱う
+    // ※ 案件の終了日（納品日）が transactionDate にマッピングされているため
+    if (viewMode === 'project') {
         return transaction.transactionDate;
-    } else {
-        // 現金主義の場合は決済日を使用
-        // 決済日がない場合は発生日にフォールバック
-        return transaction.settlementDate || transaction.transactionDate;
     }
+
+    // 発生主義モード
+    if (viewMode === 'accrual') {
+        return transaction.transactionDate;
+    }
+
+    // 現金主義モード（'cash'）
+    // 決済日（入出金日）を使用。未決済の場合は発生日にフォールバック
+    return transaction.settlementDate || transaction.transactionDate;
 }
 
 /**

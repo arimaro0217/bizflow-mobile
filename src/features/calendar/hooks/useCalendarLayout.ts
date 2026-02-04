@@ -9,8 +9,16 @@
 //   - ビューモード（月/週）に応じて計算範囲を最小化
 // =============================================================================
 
+import { useMemo } from 'react';
+import { format, isSameDay, isAfter, isBefore, eachDayOfInterval } from 'date-fns';
 import { getDisplayDate } from '../../../lib/transactionHelpers';
 import type { ViewMode } from '../../../stores/appStore';
+import type { Project, Transaction } from '../../../types';
+import type { UseCalendarLayoutReturn, CalendarDay, EventsByDate, TransactionsByDate } from '../types';
+import { useCalendarGrid } from './useCalendarGrid';
+
+const MAX_VISIBLE_ROWS = 4;
+type CalendarViewMode = 'month' | 'week';
 
 // ...
 
@@ -136,6 +144,7 @@ export function useCalendarLayout(
                     visualRowIndex: assignedRow,
                     isStart: idx === 0,
                     isEnd: idx === intersectKeys.length - 1,
+                    isMiddle: idx !== 0 && idx !== intersectKeys.length - 1,
                     isOverflow,
                 });
             });

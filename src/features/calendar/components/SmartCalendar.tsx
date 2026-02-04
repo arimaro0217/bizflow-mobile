@@ -25,7 +25,8 @@ import {
 } from '@dnd-kit/core';
 import { toast } from 'sonner';
 import { cn } from '../../../lib/utils';
-import { useCalendarLayout, type RenderableEvent } from '../hooks/useCalendarLayout';
+import { useCalendarLayout } from '../hooks/useCalendarLayout';
+import type { RenderableEvent } from '../types';
 import type { Project, Transaction, Client } from '../../../types';
 import { DragOverlayBar } from './DraggableProjectBar';
 import { ProjectPopover } from './ProjectPopover';
@@ -72,7 +73,40 @@ export function SmartCalendar({
     const viewMode = calendarView;
     const setViewMode = setCalendarView;
 
+    // Dnd Kit sensors
+    const sensors = useSensors(
+        useSensor(MouseSensor, { activationConstraint: { distance: 10 } }),
+        useSensor(TouchSensor, {
+            activationConstraint: { delay: 250, tolerance: 5 }
+        })
+    );
+
+    // Local State
+    const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+    const [activeEvent, setActiveEvent] = useState<RenderableEvent | null>(null);
+    /* 
+    const [resizingState, setResizingState] = useState<{
+        project: Project;
+        originalEndDate: Date;
+        startX: number;
+        newEndDate: Date;
+    } | null>(null);
+    */
+
+    // Detail Sheet State
+    const [detailSheetOpen, setDetailSheetOpen] = useState(false);
+    const [detailDate, setDetailDate] = useState<Date | null>(null);
+    const [detailTransactions, setDetailTransactions] = useState<Transaction[]>([]);
+
+    // Refs and other state
+    const containerRef = React.useRef<HTMLDivElement>(null);
+    const [selectedDateKey, setSelectedDateKey] = useState<string | null>(null);
+    const lastTapRef = React.useRef<{ date: string; time: number } | null>(null);
+    const DOUBLE_TAP_DELAY = 300;
+
     // ... (intermediate code) ...
+
+    const displayProjects = React.useMemo(() => projects, [projects]);
 
     const { days, eventsByDate, transactionsByDate, maxRowIndex } = useCalendarLayout(
         currentDate,
@@ -89,12 +123,15 @@ export function SmartCalendar({
     const handleResizeStart = React.useCallback((project: Project, e: React.PointerEvent) => {
         if (!project.endDate) return;
 
+        /*
         setResizingState({
             project,
             originalEndDate: project.endDate,
             startX: e.clientX,
             newEndDate: project.endDate,
         });
+        */
+        console.log('Resize start:', project.title, e.clientX);
     }, []);
 
     // ナビゲーション
@@ -123,6 +160,7 @@ export function SmartCalendar({
                 visualRowIndex: 0,
                 isStart: true,
                 isEnd: true,
+                isMiddle: false,
                 isOverflow: false,
             });
         }
