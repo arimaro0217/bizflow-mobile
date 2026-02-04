@@ -241,10 +241,10 @@ export function TransactionForm({
                                         {initialTransaction ? '更新する' : '登録する'}
                                     </Button>
 
-                                    {initialTransaction && onDelete && (
+                                    {initialTransaction && (
                                         <button
                                             onClick={() => {
-                                                onDelete(initialTransaction);
+                                                onDelete?.(initialTransaction);
                                                 onOpenChange(false);
                                             }}
                                             className="w-full py-4 text-red-400 font-medium hover:bg-white/5 rounded-xl transition-colors"
