@@ -496,8 +496,8 @@ export default function Dashboard() {
                     clients={clients}
                     calendarTransactions={mapTransactionsForCalendar(displayTransactions, viewMode)}
                     onDateClick={handleDateClick}
-                    onTransactionClick={handleEditTransaction}
                     onProjectClick={handleEditProject}
+                    onTransactionClick={handleEditTransaction}
                 />
 
                 {/* PC: リスト+サマリー */}

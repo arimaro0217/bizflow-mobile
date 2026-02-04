@@ -298,7 +298,7 @@ export function ProjectCreateWizard({
     };
 
     return (
-        <Drawer.Root open={open} onOpenChange={onOpenChange}>
+        <Drawer.Root open={open} onOpenChange={onOpenChange} dismissible={false}>
             <Drawer.Portal>
                 <Drawer.Overlay className="fixed inset-0 bg-black/60 z-40" />
                 <Drawer.Content
