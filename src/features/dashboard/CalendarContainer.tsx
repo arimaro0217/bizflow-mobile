@@ -10,12 +10,13 @@
 import { useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Briefcase, Wallet, TrendingUp, TrendingDown } from 'lucide-react';
-import { isSameMonth, startOfMonth } from 'date-fns';
+import { startOfMonth, isSameMonth } from 'date-fns';
 import { ViewToggle } from '../../components/ui/ViewToggle';
 import { SmartCalendar } from '../calendar/components/SmartCalendar';
 import { Calendar } from '../calendar/Calendar';
 import type { Project, Transaction, Client } from '../../types';
 import { useAppStore } from '../../stores/appStore';
+import { getDisplayDate } from '../../lib/transactionHelpers';
 import Decimal from 'decimal.js';
 
 interface CalendarContainerProps {
@@ -47,8 +48,8 @@ export function CalendarContainer({
 
         return transactions.reduce(
             (acc, tx) => {
-                // transactionDate が今月かどうかをチェック
-                const txDate = tx.transactionDate;
+                // viewModeに応じた日付を取得して今月かどうかをチェック
+                const txDate = getDisplayDate(tx, viewMode);
                 if (!txDate || !isSameMonth(txDate, monthStart)) {
                     return acc;
                 }
@@ -63,7 +64,7 @@ export function CalendarContainer({
             },
             { income: new Decimal(0), expense: new Decimal(0) }
         );
-    }, [transactions, currentMonth]);
+    }, [transactions, currentMonth, viewMode]);
 
     // ビュー切り替えオプション
     // 資金繰り（キャッシュ）と発生主義（アクルーアル）は統合して「会計」タブとし、案件は「案件」タブとする?

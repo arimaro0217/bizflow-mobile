@@ -144,27 +144,34 @@ export function DateTransactionsSheet({
                                         >
                                             <div className="flex items-start justify-between gap-3">
                                                 <div className="flex-1 min-w-0">
-                                                    {/* 取引先名 or メモ */}
+                                                    {/* メモ or 取引先名 */}
                                                     <p className="font-medium text-white truncate">
-                                                        {clientName || tx.memo || (isIncome ? '収入' : '支出')}
+                                                        {tx.memo || clientName || (isIncome ? '収入' : '支出')}
                                                     </p>
-                                                    {/* メモ（取引先がある場合のみ表示） */}
-                                                    {clientName && tx.memo && (
+                                                    {/* 取引先名（タイトルがメモの場合のみ表示） */}
+                                                    {tx.memo && clientName && (
                                                         <p className="text-sm text-gray-400 truncate mt-0.5">
-                                                            {tx.memo}
+                                                            {clientName}
                                                         </p>
                                                     )}
-                                                    {/* 決済日 */}
-                                                    {tx.settlementDate && (
-                                                        <p className="text-xs text-gray-500 mt-1">
-                                                            決済: {format(tx.settlementDate, 'M/d')}
-                                                            {tx.isSettled && (
-                                                                <span className="ml-2 px-1.5 py-0.5 bg-green-500/20 text-green-400 rounded text-[10px]">
-                                                                    消込済
-                                                                </span>
-                                                            )}
-                                                        </p>
-                                                    )}
+                                                    {/* 日付情報 */}
+                                                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1">
+                                                        {tx.transactionDate && (
+                                                            <p className="text-xs text-gray-500">
+                                                                発生: {format(tx.transactionDate, 'M/d')}
+                                                            </p>
+                                                        )}
+                                                        {tx.settlementDate && (
+                                                            <p className="text-xs text-blue-400/70">
+                                                                決済: {format(tx.settlementDate, 'M/d')}
+                                                            </p>
+                                                        )}
+                                                        {tx.isSettled && (
+                                                            <span className="px-1.5 py-0.5 bg-green-500/20 text-green-400 rounded text-[10px]">
+                                                                消込済
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                 </div>
                                                 {/* 金額 */}
                                                 <p className={cn(
