@@ -37,6 +37,7 @@ interface CalendarProps {
     onTransactionClick?: (transaction: Transaction) => void;
     /** 日付クリック時のコールバック */
     onDateClick?: (date: Date) => void;
+    onTransactionDelete?: (transaction: Transaction) => void;
 }
 
 export function Calendar({
@@ -44,7 +45,8 @@ export function Calendar({
     fullTransactions = [],
     clients = [],
     onTransactionClick,
-    onDateClick
+    onDateClick,
+    onTransactionDelete,
 }: CalendarProps) {
     const { selectedDate, setSelectedDate, calendarView, setCalendarView, viewMode, currentMonth, setCurrentMonth } = useAppStore();
     // currentMonth をローカル名 currentDate として扱う（既存ロジック維持のため）
@@ -316,6 +318,7 @@ export function Calendar({
                 transactions={detailTransactions}
                 clients={clients}
                 onTransactionClick={handleTransactionClick}
+                onTransactionDelete={onTransactionDelete}
             />
         </div>
     );

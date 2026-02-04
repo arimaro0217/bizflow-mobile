@@ -28,6 +28,7 @@ interface CalendarContainerProps {
     onDateClick?: (date: Date) => void;
     onProjectClick?: (project: Project) => void;
     onTransactionClick?: (transaction: Transaction) => void;
+    onTransactionDelete?: (transaction: Transaction) => void;
 }
 
 export function CalendarContainer({
@@ -38,6 +39,7 @@ export function CalendarContainer({
     onDateClick,
     onProjectClick,
     onTransactionClick,
+    onTransactionDelete,
 }: CalendarContainerProps) {
     const { viewMode, setViewMode, currentMonth } = useAppStore();
     // currentMonth from store (synced with Calendar component)
@@ -131,6 +133,8 @@ export function CalendarContainer({
                             clients={clients}
                             onDateClick={onDateClick}
                             onProjectClick={onProjectClick}
+                            onTransactionClick={onTransactionClick}
+                            onTransactionDelete={onTransactionDelete}
                         />
                     </motion.div>
                 ) : (
@@ -147,6 +151,7 @@ export function CalendarContainer({
                             clients={clients}
                             onTransactionClick={onTransactionClick}
                             onDateClick={onDateClick}
+                            onTransactionDelete={onTransactionDelete}
                         />
                     </motion.div>
                 )}

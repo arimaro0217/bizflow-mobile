@@ -518,6 +518,7 @@ export default function Dashboard() {
                     onDateClick={handleDateClick}
                     onProjectClick={handleEditProject}
                     onTransactionClick={handleEditTransaction}
+                    onTransactionDelete={handleDeleteTransaction}
                 />
 
                 {/* PC: リスト+サマリー */}

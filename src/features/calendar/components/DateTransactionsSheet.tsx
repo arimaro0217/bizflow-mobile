@@ -22,6 +22,7 @@ interface DateTransactionsSheetProps {
     transactions: Transaction[];
     clients: Client[];
     onTransactionClick?: (transaction: Transaction) => void;
+    onTransactionDelete?: (transaction: Transaction) => void;
 }
 
 export function DateTransactionsSheet({
@@ -31,6 +32,7 @@ export function DateTransactionsSheet({
     transactions,
     clients,
     onTransactionClick,
+    onTransactionDelete,
 }: DateTransactionsSheetProps) {
     if (!date) return null;
 
@@ -132,56 +134,73 @@ export function DateTransactionsSheet({
                                     const isIncome = tx.type === 'income';
 
                                     return (
-                                        <button
+                                        <div
                                             key={tx.id}
-                                            onClick={() => onTransactionClick?.(tx)}
-                                            className={cn(
-                                                'w-full text-left p-3 rounded-xl transition-colors',
-                                                'bg-surface-light hover:bg-surface-light/80',
-                                                'border-l-4',
-                                                isIncome ? 'border-income' : 'border-expense'
-                                            )}
+                                            className="relative group"
                                         >
-                                            <div className="flex items-start justify-between gap-3">
-                                                <div className="flex-1 min-w-0">
-                                                    {/* メモ or 取引先名 */}
-                                                    <p className="font-medium text-white truncate">
-                                                        {tx.memo || clientName || (isIncome ? '収入' : '支出')}
-                                                    </p>
-                                                    {/* 取引先名（タイトルがメモの場合のみ表示） */}
-                                                    {tx.memo && clientName && (
-                                                        <p className="text-sm text-gray-400 truncate mt-0.5">
-                                                            {clientName}
+                                            <button
+                                                onClick={() => onTransactionClick?.(tx)}
+                                                className={cn(
+                                                    'w-full text-left p-3 rounded-xl transition-colors',
+                                                    'bg-surface-light hover:bg-surface-light/80',
+                                                    'border-l-4 pr-12', // Make space for delete button
+                                                    isIncome ? 'border-income' : 'border-expense'
+                                                )}
+                                            >
+                                                <div className="flex items-start justify-between gap-3">
+                                                    <div className="flex-1 min-w-0">
+                                                        {/* メモ or 取引先名 */}
+                                                        <p className="font-medium text-white truncate">
+                                                            {tx.memo || clientName || (isIncome ? '収入' : '支出')}
                                                         </p>
-                                                    )}
-                                                    {/* 日付情報 */}
-                                                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1">
-                                                        {tx.transactionDate && (
-                                                            <p className="text-xs text-gray-500">
-                                                                発生: {format(tx.transactionDate, 'M/d')}
+                                                        {/* 取引先名（タイトルがメモの場合のみ表示） */}
+                                                        {tx.memo && clientName && (
+                                                            <p className="text-sm text-gray-400 truncate mt-0.5">
+                                                                {clientName}
                                                             </p>
                                                         )}
-                                                        {tx.settlementDate && (
-                                                            <p className="text-xs text-blue-400/70">
-                                                                決済: {format(tx.settlementDate, 'M/d')}
-                                                            </p>
-                                                        )}
-                                                        {tx.isSettled && (
-                                                            <span className="px-1.5 py-0.5 bg-green-500/20 text-green-400 rounded text-[10px]">
-                                                                消込済
-                                                            </span>
-                                                        )}
+                                                        {/* 日付情報 */}
+                                                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1">
+                                                            {tx.transactionDate && (
+                                                                <p className="text-xs text-gray-500">
+                                                                    発生: {format(tx.transactionDate, 'M/d')}
+                                                                </p>
+                                                            )}
+                                                            {tx.settlementDate && (
+                                                                <p className="text-xs text-blue-400/70">
+                                                                    決済: {format(tx.settlementDate, 'M/d')}
+                                                                </p>
+                                                            )}
+                                                            {tx.isSettled && (
+                                                                <span className="px-1.5 py-0.5 bg-green-500/20 text-green-400 rounded text-[10px]">
+                                                                    消込済
+                                                                </span>
+                                                            )}
+                                                        </div>
                                                     </div>
+                                                    {/* 金額 */}
+                                                    <p className={cn(
+                                                        'text-lg font-bold whitespace-nowrap',
+                                                        isIncome ? 'text-income' : 'text-expense'
+                                                    )}>
+                                                        {isIncome ? '+' : '-'}¥{formatAmount(tx.amount)}
+                                                    </p>
                                                 </div>
-                                                {/* 金額 */}
-                                                <p className={cn(
-                                                    'text-lg font-bold whitespace-nowrap',
-                                                    isIncome ? 'text-income' : 'text-expense'
-                                                )}>
-                                                    {isIncome ? '+' : '-'}¥{formatAmount(tx.amount)}
-                                                </p>
-                                            </div>
-                                        </button>
+                                            </button>
+
+                                            {/* 削除ボタン - 右端に配置 */}
+                                            {onTransactionDelete && (
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        onTransactionDelete(tx);
+                                                    }}
+                                                    className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-full text-gray-500 hover:text-red-400 hover:bg-red-400/10 transition-colors z-10"
+                                                >
+                                                    <X className="w-5 h-5" />
+                                                </button>
+                                            )}
+                                        </div>
                                     );
                                 })
                             )}
