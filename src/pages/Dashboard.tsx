@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { isSameMonth } from 'date-fns';
+import { isSameMonth, format } from 'date-fns';
 import { Plus, Settings, Wallet, LayoutDashboard, LogOut, TrendingUp, PieChart, Repeat, CheckCircle, AlertCircle } from 'lucide-react';
 import { AppLayout } from '../components/layout/AppLayout';
 import { motion } from 'framer-motion';
@@ -16,7 +16,7 @@ import type { Client, Transaction, ClientFormData, TransactionFormData, ProjectC
 import RecurringSettings from './RecurringSettings';
 import SettingsPage from './SettingsPage';
 import ClientManagementPage from './ClientManagementPage';
-import { mapTransactionsForCalendar } from '../lib/transactionHelpers';
+import { mapTransactionsForCalendar, getDisplayDate } from '../lib/transactionHelpers';
 import { convertProjectToTransaction } from '../lib/projectHelpers';
 import Decimal from 'decimal.js';
 import { toast } from 'sonner';
@@ -78,8 +78,21 @@ export default function Dashboard() {
             .filter(p => p.endDate) // 日付があるもののみ
             .map(convertProjectToTransaction);
 
-        return [...transactions, ...virtualTransactions];
-    }, [transactions, unlinkedProjects]);
+        const combined = [...transactions, ...virtualTransactions];
+
+        // DEBUG: 日付データの検証
+        console.log('[DEBUG] Display Transactions Sample:', combined.slice(0, 3).map(t => ({
+            id: t.id,
+            isEstimate: t.isEstimate,
+            type: t.type,
+            transactionDate: t.transactionDate ? format(t.transactionDate, 'yyyy-MM-dd') : 'null',
+            settlementDate: t.settlementDate ? format(t.settlementDate, 'yyyy-MM-dd') : 'null',
+            viewMode,
+            displayDate: t.transactionDate ? format(getDisplayDate(t, viewMode) || new Date(), 'yyyy-MM-dd') : 'N/A'
+        })));
+
+        return combined;
+    }, [transactions, unlinkedProjects, viewMode]);
 
     // 編集中のステート
     const [editingClient, setEditingClient] = useState<Client | null>(null);

@@ -47,6 +47,7 @@ export function TransactionList({ transactions, loading, viewMode = 'accrual', o
                     >
                         <TransactionItem
                             transaction={transaction}
+                            viewMode={viewMode}
                             onEdit={onEdit}
                             onDelete={onDelete}
                         />
