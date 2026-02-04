@@ -16,7 +16,8 @@ import type { Client, Transaction, ClientFormData, TransactionFormData, ProjectC
 import RecurringSettings from './RecurringSettings';
 import SettingsPage from './SettingsPage';
 import ClientManagementPage from './ClientManagementPage';
-import { mapTransactionsForCalendar } from '../lib/transactionHelpers';
+import { mapTransactionsForCalendar, getDisplayDate } from '../lib/transactionHelpers';
+import { convertProjectToTransaction } from '../lib/projectHelpers';
 import Decimal from 'decimal.js';
 import { toast } from 'sonner';
 
@@ -67,15 +68,26 @@ export default function Dashboard() {
         isEstimate: t.isEstimate
     })));
     // 表示用のトランザクション（案件連動の見込みデータを含む）
-    const displayTransactions = useMemo(() => {
-        // Firestoreから取得した全トランザクション（案件連動の見込みデータも含まれる）
-        // 案件作成時に自動的にトランザクションが生成されるため、二重表示を避けるためここでの統合を中止しました。
-        return [...transactions].sort((a, b) => {
+    const displayTransactions = useMemo<Transaction[]>(() => {
+        // すでに取引（トランザクション）が作成されている案件IDのセット
+        const linkedProjectIds = new Set(
+            transactions
+                .filter(t => t.projectId)
+                .map(t => t.projectId)
+        );
+
+        // まだ取引に紐づいていない案件を仮想トランザクションとして抽出
+        const virtualTransactions = projects
+            .filter(p => !linkedProjectIds.has(p.id) && p.endDate && p.status !== 'completed')
+            .map(convertProjectToTransaction);
+
+        // Firestoreの取引データと仮想データを統合し、日付の降順でソート
+        return [...transactions, ...virtualTransactions].sort((a: Transaction, b: Transaction) => {
             const dateA = a.transactionDate || new Date(0);
             const dateB = b.transactionDate || new Date(0);
             return dateB.getTime() - dateA.getTime();
         });
-    }, [transactions]);
+    }, [transactions, projects]);
 
     // 編集中のステート
     const [editingClient, setEditingClient] = useState<Client | null>(null);
@@ -323,19 +335,31 @@ export default function Dashboard() {
         // setIsTransactionFormOpen(true);
     };
 
-    // サマリー計算
-    const incomeTotal = transactions
-        .filter(t => t.type === 'income' && t.transactionDate && isSameMonth(t.transactionDate, selectedDate))
-        .reduce((sum, t) => sum.plus(t.amount), new Decimal(0));
+    // サマリー計算 (表示モードに応じて切り替え)
+    const incomeTotal = useMemo(() =>
+        displayTransactions
+            .filter((t: Transaction) => {
+                const date = getDisplayDate(t, viewMode);
+                return t.type === 'income' && date && isSameMonth(date, selectedDate);
+            })
+            .reduce((sum: Decimal, t: Transaction) => sum.plus(t.amount || '0'), new Decimal(0))
+        , [displayTransactions, selectedDate, viewMode]);
 
-    const expenseTotal = transactions
-        .filter(t => t.type === 'expense' && t.transactionDate && isSameMonth(t.transactionDate, selectedDate))
-        .reduce((sum, t) => sum.plus(t.amount), new Decimal(0));
+    const expenseTotal = useMemo(() =>
+        displayTransactions
+            .filter((t: Transaction) => {
+                const date = getDisplayDate(t, viewMode);
+                return t.type === 'expense' && date && isSameMonth(date, selectedDate);
+            })
+            .reduce((sum: Decimal, t: Transaction) => sum.plus(t.amount || '0'), new Decimal(0))
+        , [displayTransactions, selectedDate, viewMode]);
 
     // 入金予測（決済日が今月の収入）
-    const cashInTotal = transactions
-        .filter(t => t.type === 'income' && t.settlementDate && isSameMonth(t.settlementDate, selectedDate))
-        .reduce((sum, t) => sum.plus(t.amount), new Decimal(0));
+    const cashInTotal = useMemo(() =>
+        displayTransactions
+            .filter((t: Transaction) => t.type === 'income' && t.settlementDate && isSameMonth(t.settlementDate, selectedDate))
+            .reduce((sum: Decimal, t: Transaction) => sum.plus(t.amount || '0'), new Decimal(0))
+        , [displayTransactions, selectedDate]);
 
     const sidebarContent = (
         <div className="flex flex-col h-full">
