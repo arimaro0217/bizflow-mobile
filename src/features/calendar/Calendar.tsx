@@ -78,18 +78,21 @@ export function Calendar({
     const lastTapRef = useRef<{ date: string; time: number } | null>(null);
     const DOUBLE_TAP_DELAY = 300; // ミリ秒
 
-    // 日付をクリックした時の処理（ダブルタップでポップアップ表示）
+    // 日付をクリックした時の処理（選択済みの日の場合はポップアップを表示）
     const handleDateClick = (day: Date) => {
         const now = Date.now();
         const dateKey = day.toISOString();
         const lastTap = lastTapRef.current;
 
+        // すでに選択されている日付を再度タップしたか、またはダブルタップの場合にポップアップを表示
+        const isSelectedTap = selectedDate && isSameDay(day, selectedDate);
+        const isDoubleTap = lastTap && lastTap.date === dateKey && (now - lastTap.time) < DOUBLE_TAP_DELAY;
+
         // 常に日付を選択
         setSelectedDate(day);
 
-        // ダブルタップ判定
-        if (lastTap && lastTap.date === dateKey && (now - lastTap.time) < DOUBLE_TAP_DELAY) {
-            // ダブルタップ: ポップアップを表示
+        if (isSelectedTap || isDoubleTap) {
+            // ポップアップを表示
             lastTapRef.current = null; // リセット
 
             // その日のトランザクションを取得
@@ -102,7 +105,7 @@ export function Calendar({
                 setDetailSheetOpen(true);
             }
         } else {
-            // シングルタップ: 次のタップを待つ
+            // 次のタップを待つ
             lastTapRef.current = { date: dateKey, time: now };
         }
     };

@@ -242,7 +242,7 @@ export function useProjectOperations(uid: string | undefined): UseProjectOperati
                 settlementDate: settlementDate,   // 入金予定日
                 isSettled: false,
                 clientId: client.id,
-                memo: `【案件】${data.title}`,
+                memo: data.memo ? `【案件】${data.title}\n${data.memo}` : `【案件】${data.title}`,
                 uid, // 認証UIDを追加（セキュリティルールで必要）
                 createdAt: serverTimestamp(),
                 updatedAt: serverTimestamp(),
@@ -336,8 +336,10 @@ export function useProjectOperations(uid: string | undefined): UseProjectOperati
                                 }
 
                                 // B. タイトル変更
-                                if (data.title !== undefined) {
-                                    updateData.memo = `【案件】${data.title}`;
+                                if (data.title !== undefined || data.memo !== undefined) {
+                                    const title = data.title !== undefined ? data.title : currentProject.title;
+                                    const memo = data.memo !== undefined ? data.memo : currentProject.memo;
+                                    updateData.memo = memo ? `【案件】${title}\n${memo}` : `【案件】${title}`;
                                 }
 
                                 // C. 終了日変更 -> 発生日と入金予定日を再計算

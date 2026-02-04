@@ -1,5 +1,4 @@
 import type { Project, Transaction } from '../types';
-import { Timestamp } from 'firebase/firestore';
 
 /**
  * プロジェクトを仮想的なトランザクションに変換する
@@ -18,7 +17,7 @@ export function convertProjectToTransaction(project: Project): Transaction {
         settlementDate: null,
         isSettled: false,
         clientId: project.clientId,
-        memo: project.title, // メモに案件名を入れる
+        memo: project.memo ? `${project.title}\n${project.memo}` : project.title, // メモに案件名と備考を入れる
         createdAt: project.createdAt || new Date(),
         updatedAt: project.updatedAt || new Date(),
         projectId: project.id,
