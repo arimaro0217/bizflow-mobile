@@ -268,17 +268,109 @@ export function useProjectOperations(uid: string | undefined): UseProjectOperati
     // -------------------------------------------------------------------------
     // 案件更新
     // -------------------------------------------------------------------------
+    // -------------------------------------------------------------------------
+    // 案件更新
+    // -------------------------------------------------------------------------
     const updateProject = useCallback(
         async (id: string, data: Partial<CreateProjectInput>): Promise<void> => {
             if (!uid) throw new Error('ログインが必要です');
 
-            const projectRef = doc(db, 'users', uid, 'projects', id);
             const batch = writeBatch(db);
+            const projectRef = doc(db, 'users', uid, 'projects', id);
 
+            // 1. 案件を更新
             batch.update(projectRef, {
                 ...data,
                 updatedAt: serverTimestamp(),
             });
+
+            // -----------------------------------------------------------------
+            // 2. 連動するTransactionも更新
+            //    (日付、金額、タイトルの変更を反映)
+            // -----------------------------------------------------------------
+            // 変更対象のフィールドが含まれているかチェック
+            const shouldUpdateTransaction =
+                data.endDate !== undefined ||
+                data.estimatedAmount !== undefined ||
+                data.title !== undefined;
+
+            if (shouldUpdateTransaction) {
+                try {
+                    // 最新のProject情報を取得（ClientIdが必要）
+                    // ※ data.clientIdがあればそれを使うが、通常更新でClientIdが変わることは稀
+                    //   安全のため、現在のProjectデータを取得する方針とする
+                    const { getDoc } = await import('firebase/firestore');
+                    const projectSnap = await getDoc(projectRef);
+
+                    if (projectSnap.exists()) {
+                        const currentProject = projectSnap.data() as FirestoreProject;
+                        const clientId = currentProject.clientId;
+
+                        // Transactionを取得
+                        // 条件: projectIdが一致 かつ 未決済(isSettled=false)
+                        // ※ isEstimate=true の条件を削除（受注確定して isEstimate=false になったものも更新対象にするため）
+                        const transactionsRef = collection(db, 'users', uid, 'transactions');
+                        const q = query(
+                            transactionsRef,
+                            where('projectId', '==', id),
+                            where('isSettled', '==', false)
+                        );
+                        const transactionSnap = await getDocs(q);
+
+                        if (!transactionSnap.empty) {
+                            // クライアント設定を取得（入金予定日再計算のため）
+                            const clientRef = doc(db, 'users', uid, 'clients', clientId);
+                            const clientSnap = await getDoc(clientRef);
+
+                            if (clientSnap.exists()) {
+                                const clientData = clientSnap.data() as Client;
+
+                                // 更新データを準備
+                                const updateData: any = {
+                                    updatedAt: serverTimestamp()
+                                };
+
+                                // A. 金額変更
+                                if (data.estimatedAmount !== undefined) {
+                                    updateData.amount = data.estimatedAmount;
+                                }
+
+                                // B. タイトル変更
+                                if (data.title !== undefined) {
+                                    updateData.memo = `【案件】${data.title}`;
+                                }
+
+                                // C. 終了日変更 -> 発生日と入金予定日を再計算
+                                if (data.endDate !== undefined) {
+                                    updateData.transactionDate = data.endDate;
+
+                                    // 支払サイトに基づいて入金予定日を計算
+                                    const newSettlementDate = calculateSettlementDate(
+                                        data.endDate,
+                                        clientData.closingDay,
+                                        clientData.paymentMonthOffset,
+                                        clientData.paymentDay
+                                    );
+
+                                    if (!isNaN(newSettlementDate.getTime())) {
+                                        updateData.settlementDate = newSettlementDate;
+                                    }
+                                }
+
+                                // 該当するTransaction全て（通常1つ）を更新
+                                transactionSnap.forEach(doc => {
+                                    batch.update(doc.ref, updateData);
+                                });
+
+                                console.log('関連トランザクションを更新対象に追加しました');
+                            }
+                        }
+                    }
+                } catch (err) {
+                    console.error('関連トランザクションの更新準備中にエラーが発生しました', err);
+                    // 案件更新自体は止めないが、ログは出す
+                }
+            }
 
             await batch.commit();
             console.log(`案件を更新しました: ${id}`);

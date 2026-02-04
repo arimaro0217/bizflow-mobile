@@ -507,7 +507,7 @@ export default function Dashboard() {
                                 )}
                             </h2>
                             <TransactionList
-                                transactions={transactions}
+                                transactions={displayTransactions}
                                 loading={transactionsLoading}
                                 viewMode={viewMode}
                                 onEdit={handleEditTransaction}

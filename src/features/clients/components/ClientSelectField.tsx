@@ -201,7 +201,7 @@ export const ClientSelectField = memo(function ClientSelectField({
                 <Drawer.Portal>
                     <Drawer.Overlay className="fixed inset-0 bg-black/60 z-40" />
                     <Drawer.Content
-                        className="fixed bottom-0 left-0 right-0 z-50 bg-background rounded-t-3xl flex flex-col max-h-[85vh]"
+                        className="fixed bottom-0 left-0 right-0 z-50 bg-background rounded-t-3xl flex flex-col max-h-[85dvh]"
                         aria-describedby={undefined}
                     >
                         {/* ハンドル */}
@@ -233,7 +233,7 @@ export const ClientSelectField = memo(function ClientSelectField({
                         </div>
 
                         {/* クライアントリスト */}
-                        <div className="flex-1 overflow-y-auto px-4 pb-8">
+                        <div className="flex-1 overflow-y-auto px-4 pb-8 overscroll-y-contain touch-pan-y">
                             <div className="space-y-2">
                                 {/* 新規作成ボタン */}
                                 {onCreateNew && (

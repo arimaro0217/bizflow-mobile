@@ -63,27 +63,34 @@ export function TransactionForm({
     const handleSubmit = () => {
         if (amount === '0' || !amount) return;
 
+        // 時間を正午(12:00)に設定して、タイムゾーンによる日付ズレ(00:00 -> 前日23:00等)を防止
+        const dateWithNoon = new Date(transactionDate);
+        dateWithNoon.setHours(12, 0, 0, 0);
+
         // 入金予定日を計算
-        let settlementDate = transactionDate;
+        let settlementDate = dateWithNoon;
 
         // 編集モードかつ決済日が既にある場合は維持するか、再計算するか？
         // ここではシンプルに、クライアントが選択されていれば再計算、そうでなければ既存維持または発生日
         if (selectedClient) {
             settlementDate = calculateSettlementDate(
-                transactionDate,
+                dateWithNoon,
                 selectedClient.closingDay,
                 selectedClient.paymentMonthOffset,
                 selectedClient.paymentDay
             );
         } else if (initialTransaction?.settlementDate) {
-            settlementDate = initialTransaction.settlementDate;
+            // 既存の決済日がある場合も、時間を12:00に正規化しておくのが安全
+            const existingSettlement = new Date(initialTransaction.settlementDate);
+            existingSettlement.setHours(12, 0, 0, 0);
+            settlementDate = existingSettlement;
         }
 
         onSubmit({
             type,
             amount,
             taxRate,
-            transactionDate,
+            transactionDate: dateWithNoon,
             settlementDate,
             isSettled: initialTransaction ? initialTransaction.isSettled : false,
             clientId: selectedClient?.id,
@@ -111,11 +118,8 @@ export function TransactionForm({
                     <Drawer.Overlay className="fixed inset-0 bg-black/50 z-40" />
                     <Drawer.Content
                         className="fixed bottom-0 left-0 right-0 z-50 outline-none"
-                        onClick={(e) => e.stopPropagation()}
-                        onPointerDown={(e) => e.stopPropagation()}
-                        onTouchStart={(e) => e.stopPropagation()}
                     >
-                        <div className="bg-surface-dark rounded-t-3xl max-h-[85vh] flex flex-col">
+                        <div className="bg-surface-dark rounded-t-3xl max-h-[85dvh] flex flex-col">
                             {/* ハンドル */}
                             <div className="flex justify-center py-3">
                                 <div className="w-12 h-1.5 bg-gray-600 rounded-full" />
@@ -127,7 +131,7 @@ export function TransactionForm({
                             </div>
 
                             {/* コンテンツ */}
-                            <div className="flex-1 overflow-y-auto px-6 pb-safe space-y-6">
+                            <div className="flex-1 overflow-y-auto px-6 pb-safe space-y-6 overscroll-y-contain touch-pan-y">
                                 {/* 収入/支出切替 */}
                                 <div className="grid grid-cols-2 gap-2">
                                     <motion.button

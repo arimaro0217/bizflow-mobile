@@ -66,7 +66,7 @@ export function DateTransactionsSheet({
             <Drawer.Portal>
                 <Drawer.Overlay className="fixed inset-0 bg-black/50 z-40" />
                 <Drawer.Content className="fixed bottom-0 left-0 right-0 z-50 outline-none max-h-[80vh] flex flex-col">
-                    <div className="bg-surface rounded-t-2xl flex flex-col max-h-[80vh]">
+                    <div className="bg-surface rounded-t-2xl flex flex-col max-h-[80dvh]">
                         {/* ハンドル */}
                         <div className="flex justify-center pt-3 pb-2">
                             <div className="w-10 h-1 rounded-full bg-gray-600" />
@@ -120,7 +120,7 @@ export function DateTransactionsSheet({
                         )}
 
                         {/* 取引リスト */}
-                        <div className="flex-1 overflow-y-auto p-4 space-y-2">
+                        <div className="flex-1 overflow-y-auto p-4 space-y-2 overscroll-y-contain touch-pan-y">
                             {transactions.length === 0 ? (
                                 <div className="text-center py-8">
                                     <Calendar className="w-12 h-12 text-gray-600 mx-auto mb-3" />

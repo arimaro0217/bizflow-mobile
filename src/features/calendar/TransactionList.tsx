@@ -134,8 +134,8 @@ function TransactionItem({ transaction, viewMode, onEdit, onDelete }: Transactio
                         </p>
                         {/* 日時 */}
                         <p className="text-gray-500 text-sm">
-                            {(viewMode === 'cash' ? (transaction.settlementDate || transaction.transactionDate) : transaction.transactionDate)
-                                ? format((viewMode === 'cash' ? (transaction.settlementDate || transaction.transactionDate) : transaction.transactionDate)!, 'M/d (E)', { locale: ja })
+                            {transaction.transactionDate
+                                ? format(transaction.transactionDate, 'M/d (E)', { locale: ja })
                                 : '-'}
                         </p>
                     </div>

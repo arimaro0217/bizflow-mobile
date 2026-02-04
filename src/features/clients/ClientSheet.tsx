@@ -111,7 +111,7 @@ export function ClientSheet({
                         </div>
 
                         {/* リスト */}
-                        <div className="flex-1 overflow-y-auto px-4 pb-safe overscroll-y-contain">
+                        <div className="flex-1 overflow-y-auto px-4 pb-safe overscroll-y-contain touch-pan-y">
                             {/* 新規作成ボタン（編集モードでない場合のみ） */}
                             {onCreateNew && !isEditMode && (
                                 <button
@@ -368,7 +368,7 @@ export function ClientFormSheet({ open, onOpenChange, onSubmit, initialClient = 
                         </div>
 
                         {/* フォーム */}
-                        <div className="flex-1 overflow-y-auto px-6 pb-safe space-y-6">
+                        <div className="flex-1 overflow-y-auto px-6 pb-safe space-y-6 overscroll-y-contain touch-pan-y">
                             {/* 名前 */}
                             <div>
                                 <label className="block text-sm font-medium text-gray-400 mb-2">

@@ -302,10 +302,7 @@ export function ProjectCreateWizard({
             <Drawer.Portal>
                 <Drawer.Overlay className="fixed inset-0 bg-black/60 z-40" />
                 <Drawer.Content
-                    className="fixed bottom-0 left-0 right-0 z-50 bg-background rounded-t-3xl flex flex-col h-[95vh]"
-                    onClick={(e) => e.stopPropagation()}
-                    onPointerDown={(e) => e.stopPropagation()}
-                    onTouchStart={(e) => e.stopPropagation()}
+                    className="fixed bottom-0 left-0 right-0 z-50 bg-background rounded-t-3xl flex flex-col h-[95dvh]"
                     aria-describedby={undefined}
                 >
                     {/* アクセシビリティ用の非表示タイトル */}
@@ -384,7 +381,7 @@ export function ProjectCreateWizard({
                     </div>
 
                     {/* コンテンツ */}
-                    <div className="flex-1 overflow-y-auto px-6 pb-20">
+                    <div className="flex-1 overflow-y-auto px-6 pb-20 overscroll-y-contain touch-pan-y">
                         <AnimatePresence mode="wait" custom={slideDirection}>
                             <motion.div
                                 key={currentStep}
