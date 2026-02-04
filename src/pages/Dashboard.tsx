@@ -550,7 +550,7 @@ export default function Dashboard() {
     return (
         <AppLayout sidebar={sidebarContent} header={headerContent}>
             {/* メインコンテンツ */}
-            <div className="space-y-6 max-w-5xl mx-auto pb-24 md:pb-24">
+            <div className="space-y-4 max-w-5xl mx-auto pb-20 md:pb-24">
                 {/* すべての画面サイズで CalendarContainer を使用（週/月切り替え付） */}
                 <CalendarContainer
                     projects={projects}

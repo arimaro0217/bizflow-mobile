@@ -50,7 +50,7 @@ const CalendarDayCell = React.memo(function CalendarDayCell({
             className={cn(
                 'border-b border-r border-white/5 relative cursor-pointer transition-colors',
                 !day.isCurrentMonth && 'opacity-40',
-                viewMode === 'week' ? 'min-h-[140px]' : 'min-h-[90px] md:min-h-[110px]',
+                viewMode === 'week' ? 'min-h-[140px]' : 'min-h-[110px] md:min-h-[110px]',
                 isSelected
                     ? 'bg-primary-500/15 ring-2 ring-primary-500/50 ring-inset'
                     : 'hover:bg-surface-light/30'

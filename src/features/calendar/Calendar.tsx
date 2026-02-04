@@ -249,7 +249,7 @@ export function Calendar({
                                     className={cn(
                                         'relative flex flex-col items-center justify-start py-2 rounded-xl md:rounded-none transition-all overflow-hidden',
                                         // Mobile Styles
-                                        calendarView === 'week' ? 'h-16' : 'h-12',
+                                        calendarView === 'week' ? 'min-h-[72px]' : 'min-h-[64px]',
                                         // Desktop Styles: Expand height and add background
                                         'md:min-h-[120px] md:bg-surface-dark md:hover:bg-surface-light',
                                         isSelected
