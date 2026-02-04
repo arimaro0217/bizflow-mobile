@@ -197,7 +197,7 @@ export const ClientSelectField = memo(function ClientSelectField({
             )}
 
             {/* 選択用Bottom Sheet */}
-            <Drawer.Root open={isOpen} onOpenChange={setIsOpen}>
+            <Drawer.Root open={isOpen} onOpenChange={setIsOpen} dismissible={false}>
                 <Drawer.Portal>
                     <Drawer.Overlay className="fixed inset-0 bg-black/60 z-40" />
                     <Drawer.Content

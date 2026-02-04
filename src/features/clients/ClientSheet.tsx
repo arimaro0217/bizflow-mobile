@@ -62,7 +62,7 @@ export function ClientSheet({
     };
 
     return (
-        <Drawer.Root open={open} onOpenChange={onOpenChange}>
+        <Drawer.Root open={open} onOpenChange={onOpenChange} dismissible={false}>
             <Drawer.Portal>
                 <Drawer.Overlay className="fixed inset-0 bg-black/50 z-40" />
                 <Drawer.Content className="fixed bottom-0 left-0 right-0 z-50 outline-none">
@@ -78,14 +78,22 @@ export function ClientSheet({
                                 <h2 className="text-xl font-semibold text-white">
                                     {isEditMode ? '取引先を編集' : '取引先を選択'}
                                 </h2>
-                                {!isEditMode && onEdit && (
+                                <div className="flex items-center gap-2">
+                                    {!isEditMode && onEdit && (
+                                        <button
+                                            onClick={() => setIsEditMode(true)}
+                                            className="text-sm text-primary-400 hover:text-primary-300 py-2 px-1"
+                                        >
+                                            編集
+                                        </button>
+                                    )}
                                     <button
-                                        onClick={() => setIsEditMode(true)}
-                                        className="text-sm text-primary-400 hover:text-primary-300"
+                                        onClick={() => onOpenChange(false)}
+                                        className="p-2 rounded-full hover:bg-surface-light transition-colors"
                                     >
-                                        編集
+                                        <X className="w-6 h-6 text-gray-400" />
                                     </button>
-                                )}
+                                </div>
                             </div>
 
                             {/* 検索バー（編集モードでない場合のみ） */}
