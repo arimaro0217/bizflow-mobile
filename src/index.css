@@ -37,14 +37,12 @@ a,
 html {
   overscroll-behavior-y: none;
   /* 全体のバウンスを無効化 */
-  height: 100%;
-  overflow: hidden;
-  /* コンテンツエリア以外でのスクロールを禁止 */
+  /* Remove overflow: hidden to allow body to scroll naturally if needed */
 }
 
 body {
   overscroll-behavior-y: none;
-  height: 100%;
+  /* height: 100%; <- Removed to allow growth */
   overflow-y: auto;
   /* body内でスクロールを許可 */
   -webkit-overflow-scrolling: touch;
