@@ -45,6 +45,7 @@ interface SmartCalendarProps {
     transactions: Transaction[];
     onDateClick?: (date: Date) => void;
     onProjectClick?: (project: Project) => void;
+    onTransactionClick?: (transaction: Transaction) => void;
     clients?: Client[];
 }
 
@@ -57,6 +58,7 @@ export function SmartCalendar({
     transactions,
     onDateClick,
     onProjectClick,
+    onTransactionClick,
     clients = [],
 }: SmartCalendarProps) {
     const { user } = useAuth();
@@ -379,8 +381,9 @@ export function SmartCalendar({
                 date={detailDate}
                 transactions={detailTransactions}
                 clients={clients}
-                onTransactionClick={() => {
+                onTransactionClick={(tx) => {
                     setDetailSheetOpen(false);
+                    onTransactionClick?.(tx);
                 }}
             />
         </DndContext>
