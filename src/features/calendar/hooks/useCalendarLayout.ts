@@ -9,74 +9,17 @@
 //   - ビューモード（月/週）に応じて計算範囲を最小化
 // =============================================================================
 
-import { useMemo } from 'react';
-import {
-    format,
-    isSameDay,
-    eachDayOfInterval,
-    isBefore,
-    isAfter,
-} from 'date-fns';
-import { useCalendarGrid } from './useCalendarGrid';
-import type { Project, Transaction } from '../../../types';
+import { getDisplayDate } from '../../../lib/transactionHelpers';
+import type { ViewMode } from '../../../stores/appStore';
 
-// =============================================================================
-// 型定義
-// =============================================================================
-
-export type CalendarViewMode = 'month' | 'week';
-
-/** レンダリング可能なイベント（1日分のバー情報） */
-export interface RenderableEvent {
-    project: Project;
-    visualRowIndex: number;  // 表示段（0, 1, 2, ...）
-    isStart: boolean;        // この日がバーの左端か
-    isEnd: boolean;          // この日がバーの右端か
-    isOverflow: boolean;     // 最大段数を超えたか（表示対象外）
-}
-
-/** 日付ごとのイベントマップ */
-export type EventsByDate = Record<string, RenderableEvent[]>;
-
-/** k: 日付文字列, v: 集計情報 */
-export interface DailyTransactionSummary {
-    income: number;
-    expense: number;
-    transactions: Transaction[];
-}
-export type TransactionsByDate = Record<string, DailyTransactionSummary>;
-
-/** カレンダーグリッド用の日付情報 */
-export interface CalendarDay {
-    date: Date;
-    dateKey: string;        // 'yyyy-MM-dd' 形式
-    isCurrentMonth: boolean;
-    isToday: boolean;
-}
-
-/** フックの戻り値 */
-export interface UseCalendarLayoutReturn {
-    days: CalendarDay[];
-    eventsByDate: EventsByDate;
-    transactionsByDate: TransactionsByDate;
-    maxRowIndex: number;  // 使用された最大の段数
-}
-
-// =============================================================================
-// 定数
-// =============================================================================
-
-const MAX_VISIBLE_ROWS = 3;
-
-// =============================================================================
-// メインフック
-// =============================================================================
+// ...
 
 export function useCalendarLayout(
     currentDate: Date,
     projects: Project[],
     transactions: Transaction[],
-    viewMode: CalendarViewMode = 'month'
+    viewMode: CalendarViewMode = 'month',
+    financeViewMode: ViewMode = 'accrual' // デフォルトは発生主義（案件カレンダーなので）
 ): UseCalendarLayoutReturn {
     // -------------------------------------------------------------------------
     // 1. プロジェクトのソート（データ変更時のみ再計算）
@@ -202,7 +145,8 @@ export function useCalendarLayout(
         // 5. トランザクション集計
         // ---------------------------------------------------------------------
         for (const tx of transactions) {
-            const targetDate = tx.settlementDate || tx.transactionDate;
+            // viewModeに応じて日付を決定（発生主義 or 現金主義）
+            const targetDate = getDisplayDate(tx, financeViewMode);
             if (!targetDate) continue;
 
             // 範囲外判定（高速化）

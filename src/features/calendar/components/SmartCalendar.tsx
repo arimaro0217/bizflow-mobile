@@ -32,6 +32,7 @@ import { ProjectPopover } from './ProjectPopover';
 import { DateTransactionsSheet } from './DateTransactionsSheet';
 import CalendarDayCell from './CalendarDayCell';
 import { useProjectOperations } from '../../../hooks/useProjectOperations';
+import { getDisplayDate } from '../../../lib/transactionHelpers';
 import { useAuth } from '../../../features/auth';
 import { useAppStore } from '../../../stores/appStore';
 
@@ -62,61 +63,21 @@ export function SmartCalendar({
 }: SmartCalendarProps) {
     const { user } = useAuth();
     const { updateProject, deleteProject } = useProjectOperations(user?.uid);
-    const { currentMonth, setCurrentMonth, calendarView, setCalendarView } = useAppStore();
+    const { currentMonth, setCurrentMonth, calendarView, setCalendarView, viewMode: financeViewMode } = useAppStore();
     // currentMonth をローカル名 currentDate として扱う
     const currentDate = currentMonth;
     // ローカルのviewModeを削除し、ストアのcalendarView（別名viewModeとして扱う）を使用
     const viewMode = calendarView;
     const setViewMode = setCalendarView;
 
-    const [activeEvent, setActiveEvent] = useState<RenderableEvent | null>(null);
-    const [selectedProject, setSelectedProject] = useState<Project | null>(null);
-    const [selectedDateKey, setSelectedDateKey] = useState<string | null>(null);
-
-    // 日付詳細シートの状態
-    const [detailSheetOpen, setDetailSheetOpen] = useState(false);
-    const [detailDate, setDetailDate] = useState<Date | null>(null);
-    const [detailTransactions, setDetailTransactions] = useState<Transaction[]>([]);
-
-    // ダブルタップ検出用
-    const lastTapRef = React.useRef<{ date: string; time: number } | null>(null);
-    const DOUBLE_TAP_DELAY = 300;
-
-    // リサイズ用 State & Ref
-    const containerRef = React.useRef<HTMLDivElement>(null);
-    const [resizingState, setResizingState] = React.useState<{
-        project: Project;
-        originalEndDate: Date;
-        startX: number;
-        newEndDate: Date;
-    } | null>(null);
-
-    // Dnd Sensors
-    const sensors = useSensors(
-        useSensor(MouseSensor, {
-            activationConstraint: { distance: 10 },
-        }),
-        useSensor(TouchSensor, {
-            // スマホではスクロールと区別するため、少し長押しで発火
-            activationConstraint: { delay: 250, tolerance: 5 },
-        })
-    );
-
-    // リサイズ中は表示用プロジェクトリストを書き換える（リアルタイムプレビュー）
-    const displayProjects = React.useMemo(() => {
-        if (!resizingState) return projects;
-        return projects.map((p: Project) =>
-            p.id === resizingState.project.id
-                ? { ...p, endDate: resizingState.newEndDate }
-                : p
-        );
-    }, [projects, resizingState]);
+    // ... (intermediate code) ...
 
     const { days, eventsByDate, transactionsByDate, maxRowIndex } = useCalendarLayout(
         currentDate,
         displayProjects,
         transactions,
-        viewMode
+        viewMode,
+        financeViewMode // 追加
     );
 
     const weekDays = ['月', '火', '水', '木', '金', '土', '日'];
@@ -215,9 +176,9 @@ export function SmartCalendar({
                 lastTapRef.current = null;
             }
 
-            // その日のトランザクションを取得（useCalendarLayoutの集計ロジックと一致させる：決済日優先、なければ発生日）
+            // その日のトランザクションを取得（useCalendarLayoutとロジックを統一）
             const dayTxs = transactions.filter(t => {
-                const effectiveDate = t.settlementDate || t.transactionDate;
+                const effectiveDate = getDisplayDate(t, financeViewMode);
                 if (!effectiveDate) return false;
 
                 // date-fnsのisSameDayは0時0分補正などを行ってくれるが、
