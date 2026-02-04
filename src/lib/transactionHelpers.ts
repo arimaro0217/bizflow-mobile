@@ -16,7 +16,7 @@ export function getDisplayDate(
     transaction: Transaction,
     viewMode: ViewMode
 ): Date | null {
-    if (viewMode === 'accrual') {
+    if (viewMode === 'accrual' || viewMode === 'project') {
         return transaction.transactionDate;
     } else {
         // 現金主義の場合は決済日を使用
