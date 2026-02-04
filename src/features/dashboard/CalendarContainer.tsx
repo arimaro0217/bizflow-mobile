@@ -38,8 +38,8 @@ export function CalendarContainer({
     onProjectClick,
     onTransactionClick,
 }: CalendarContainerProps) {
-    const { viewMode, setViewMode } = useAppStore();
-    const currentMonth = new Date(); // TODO: selectedDate from store might be better, but keep simple for now
+    const { viewMode, setViewMode, currentMonth } = useAppStore();
+    // currentMonth from store (synced with Calendar component)
 
     // 今月のサマリー計算（月でフィルタリング）
     const summary = useMemo(() => {

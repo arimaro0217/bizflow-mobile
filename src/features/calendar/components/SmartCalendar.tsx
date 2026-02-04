@@ -31,22 +31,9 @@ import { DragOverlayBar } from './DraggableProjectBar';
 import { ProjectPopover } from './ProjectPopover';
 import CalendarDayCell from './CalendarDayCell';
 import { useProjectOperations } from '../../../hooks/useProjectOperations';
-import { useAuth } from '../../../features/auth';
+import { useAppStore } from '../../../stores/appStore';
 
-// =============================================================================
-// 型定義
-// =============================================================================
-
-interface SmartCalendarProps {
-    projects: Project[];
-    transactions: Transaction[];
-    onDateClick?: (date: Date) => void;
-    onProjectClick?: (project: Project) => void;
-}
-
-// =============================================================================
-// メインコンポーネント
-// =============================================================================
+// ...
 
 export function SmartCalendar({
     projects,
@@ -56,7 +43,9 @@ export function SmartCalendar({
 }: SmartCalendarProps) {
     const { user } = useAuth();
     const { updateProject, deleteProject } = useProjectOperations(user?.uid);
-    const [currentDate, setCurrentDate] = useState(new Date());
+    const { currentMonth, setCurrentMonth } = useAppStore();
+    // currentMonth をローカル名 currentDate として扱う
+    const currentDate = currentMonth;
     const [viewMode, setViewMode] = useState<'month' | 'week'>('month');
     const [activeEvent, setActiveEvent] = useState<RenderableEvent | null>(null);
     const [selectedProject, setSelectedProject] = useState<Project | null>(null);
@@ -116,14 +105,14 @@ export function SmartCalendar({
 
     // ナビゲーション
     const handlePrev = () => {
-        setCurrentDate(prev => viewMode === 'week' ? subWeeks(prev, 1) : subMonths(prev, 1));
+        setCurrentMonth(viewMode === 'week' ? subWeeks(currentDate, 1) : subMonths(currentDate, 1));
     };
 
     const handleNext = () => {
-        setCurrentDate(prev => viewMode === 'week' ? addWeeks(prev, 1) : addMonths(prev, 1));
+        setCurrentMonth(viewMode === 'week' ? addWeeks(currentDate, 1) : addMonths(currentDate, 1));
     };
 
-    const handleToday = () => setCurrentDate(new Date());
+    const handleToday = () => setCurrentMonth(new Date());
 
     // 表示用の段数（最低固定、最大3段）
     const displayRowCount = Math.min(Math.max(maxRowIndex + 1, 1), 3);

@@ -111,7 +111,7 @@ export function ClientSheet({
                         </div>
 
                         {/* リスト */}
-                        <div className="flex-1 overflow-y-auto px-4 pb-safe touch-pan-y">
+                        <div className="flex-1 overflow-y-auto px-4 pb-safe overscroll-y-contain">
                             {/* 新規作成ボタン（編集モードでない場合のみ） */}
                             {onCreateNew && !isEditMode && (
                                 <button
