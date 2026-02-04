@@ -66,7 +66,7 @@ export function ClientSheet({
             <Drawer.Portal>
                 <Drawer.Overlay className="fixed inset-0 bg-black/50 z-40" />
                 <Drawer.Content className="fixed bottom-0 left-0 right-0 z-50 outline-none">
-                    <div className="bg-surface-dark rounded-t-3xl max-h-[85vh] flex flex-col">
+                    <div className="bg-surface-dark rounded-t-3xl max-h-[85dvh] flex flex-col">
                         {/* ハンドル */}
                         <div className="flex justify-center py-3">
                             <div className="w-12 h-1.5 bg-gray-600 rounded-full" />
@@ -111,7 +111,7 @@ export function ClientSheet({
                         </div>
 
                         {/* リスト */}
-                        <div className="flex-1 overflow-y-auto px-4 pb-safe">
+                        <div className="flex-1 overflow-y-auto px-4 pb-safe touch-pan-y">
                             {/* 新規作成ボタン（編集モードでない場合のみ） */}
                             {onCreateNew && !isEditMode && (
                                 <button
@@ -271,7 +271,7 @@ function ClientEditItem({ client, onEdit, onDelete }: ClientEditItemProps) {
 interface ClientFormProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
-    onSubmit: (data: Omit<Client, 'id' | 'uid' | 'createdAt'>) => void;
+    onSubmit: (data: Omit<Client, 'id' | 'uid' | 'createdAt'>) => Promise<void>;
     initialClient?: Client | null;
 }
 
@@ -280,6 +280,8 @@ export function ClientFormSheet({ open, onOpenChange, onSubmit, initialClient = 
     const [closingDay, setClosingDay] = useState<number>(99);
     const [paymentMonthOffset, setPaymentMonthOffset] = useState<number>(1);
     const [paymentDay, setPaymentDay] = useState<number>(99);
+
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     const isEditing = !!initialClient;
 
@@ -300,22 +302,32 @@ export function ClientFormSheet({ open, onOpenChange, onSubmit, initialClient = 
         }
     }, [open, initialClient]);
 
-    const handleSubmit = () => {
-        if (!name.trim()) return;
+    const handleSubmit = async () => {
+        if (!name.trim() || isSubmitting) return;
 
-        onSubmit({
-            name: name.trim(),
-            closingDay,
-            paymentMonthOffset,
-            paymentDay,
-        });
+        setIsSubmitting(true);
+        try {
+            await onSubmit({
+                name: name.trim(),
+                closingDay,
+                paymentMonthOffset,
+                paymentDay,
+            });
 
-        // リセット
-        setName('');
-        setClosingDay(99);
-        setPaymentMonthOffset(1);
-        setPaymentDay(99);
-        onOpenChange(false);
+            // 成功時のリセットは親コンポーネントがフォームを再度開くときに行われるため
+            // ここでは明示的にリセットしなくても良いが、念のため
+            setName('');
+            setClosingDay(99);
+            setPaymentMonthOffset(1);
+            setPaymentDay(99);
+
+            // onOpenChange(false) は親コンポーネント（Dashboard）の責務（成功時に閉じる）なので削除
+        } catch (error) {
+            console.error('Submit error:', error);
+            // エラー時はフォームを開いたままにする（ユーザーが修正できるように）
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     const dayOptions = [
@@ -341,11 +353,8 @@ export function ClientFormSheet({ open, onOpenChange, onSubmit, initialClient = 
                 <Drawer.Overlay className="fixed inset-0 bg-black/50 z-40" />
                 <Drawer.Content
                     className="fixed bottom-0 left-0 right-0 z-50 outline-none"
-                    onClick={(e) => e.stopPropagation()}
-                    onPointerDown={(e) => e.stopPropagation()}
-                    onTouchStart={(e) => e.stopPropagation()}
                 >
-                    <div className="bg-surface-dark rounded-t-3xl max-h-[85vh] flex flex-col">
+                    <div className="bg-surface-dark rounded-t-3xl max-h-[85dvh] flex flex-col">
                         {/* ハンドル */}
                         <div className="flex justify-center py-3">
                             <div className="w-12 h-1.5 bg-gray-600 rounded-full" />
@@ -455,7 +464,7 @@ export function ClientFormSheet({ open, onOpenChange, onSubmit, initialClient = 
                             <div className="pt-2 pb-4">
                                 <Button
                                     onClick={handleSubmit}
-                                    disabled={!name.trim()}
+                                    disabled={!name.trim() || isSubmitting}
                                     size="lg"
                                     className="w-full"
                                 >

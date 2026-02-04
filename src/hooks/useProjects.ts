@@ -141,7 +141,7 @@ export function useProjects(uid: string | undefined): ProjectsState & ProjectsAc
                 type: 'income',
                 amount: data.estimatedAmount,
                 taxRate: '0.1', // デフォルト消費税
-                transactionDate: settlementDate, // 発生日ではなく入金予定日に配置(資金繰りベース)
+                transactionDate: data.endDate, // 発生日は案件終了日(納品日)
                 settlementDate: settlementDate,
                 isSettled: false,
                 clientId: client.id,
@@ -174,8 +174,7 @@ export function useProjects(uid: string | undefined): ProjectsState & ProjectsAc
                 updatedAt: serverTimestamp(),
             });
 
-            // 2. 連動するTransactionの更新（条件付き）
-            // 金額、日付、タイトル、または取引先情報(client)が変更された場合のみ同期を試みる
+            // 2. 連動するTransactionの更新
             if (data.estimatedAmount || data.endDate || data.title || client) {
                 // 関連する未決済の予測トランザクションを検索
                 const q = query(
@@ -187,41 +186,76 @@ export function useProjects(uid: string | undefined): ProjectsState & ProjectsAc
 
                 const snapshot = await getDocs(q);
 
-                snapshot.docs.forEach((docSnap) => {
-                    const updates: any = {
-                        updatedAt: serverTimestamp(),
-                    };
+                // 更新が必要なドキュメントがある場合のみ処理
+                if (!snapshot.empty) {
+                    // 日付再計算のための準備
+                    // Client情報が必要で、かつ引数として渡されていない場合はフェッチする
+                    let projectClient = client;
+                    let projectEndDate = data.endDate;
 
-                    // 金額同期
-                    if (data.estimatedAmount) {
-                        updates.amount = data.estimatedAmount;
-                    }
+                    // クライアント情報または終了日が不足している場合、既存データを取得して補完
+                    // ケース1: 日付が変わったがClientがない -> DBからClient取得が必要
+                    // ケース2: Clientが変わったが日付がない -> DBからEndDate取得が必要
+                    if ((data.endDate && !projectClient) || (client && !projectEndDate)) {
+                        // Project自体からclientIdを取得する必要があるかもしれないが、
+                        // 通常はProjectデータを持った状態でupdateProjectを呼ぶことが多い。
+                        // ここでは、TransactionにclientIdが入っているはずなのでそれを使う手もあるが、
+                        // 確実なのはProjectの現在の状態を確認すること。
+                        const currentProjectSnap = await getDocs(
+                            query(collection(db, 'users', uid, 'projects'), where('__name__', '==', id))
+                        );
 
-                    // タイトル同期
-                    if (data.title) {
-                        updates.memo = `[案件連動] ${data.title}`;
-                    }
+                        if (!currentProjectSnap.empty) {
+                            const currentProject = currentProjectSnap.docs[0].data();
 
-                    // 日付同期（Client情報とEndDateが必要）
-                    if ((data.endDate || client) && client) {
-                        // Projectの既存データを取得するわけではないので、
-                        // data.endDateがない場合は更新不可能なため、ここには到達しない前提か、
-                        // あるいは呼び出し元が必ずendDateを含める必要がある。
-                        // 今回は data.endDate がある場合のみ再計算する形とする。
-                        if (data.endDate) {
-                            const settlementDate = calculateSettlementDate(
-                                data.endDate,
-                                client.closingDay,
-                                client.paymentMonthOffset,
-                                client.paymentDay
-                            );
-                            updates.transactionDate = settlementDate;
-                            updates.settlementDate = settlementDate;
+                            if (!projectEndDate) {
+                                projectEndDate = currentProject.endDate?.toDate();
+                            }
+
+                            if (!projectClient) {
+                                const clientId = currentProject.clientId;
+                                if (clientId) {
+                                    const clientSnap = await getDocs(
+                                        query(collection(db, 'users', uid, 'clients'), where('__name__', '==', clientId))
+                                    );
+                                    if (!clientSnap.empty) {
+                                        projectClient = { id: clientSnap.docs[0].id, ...clientSnap.docs[0].data() } as Client;
+                                    }
+                                }
+                            }
                         }
                     }
 
-                    batch.update(docSnap.ref, updates);
-                });
+                    snapshot.docs.forEach((docSnap) => {
+                        const updates: any = {
+                            updatedAt: serverTimestamp(),
+                        };
+
+                        // 金額同期
+                        if (data.estimatedAmount) {
+                            updates.amount = data.estimatedAmount;
+                        }
+
+                        // タイトル同期
+                        if (data.title) {
+                            updates.memo = `[案件連動] ${data.title}`;
+                        }
+
+                        // 日付同期（Client情報とEndDateが揃っている場合）
+                        if (projectEndDate && projectClient) {
+                            const settlementDate = calculateSettlementDate(
+                                projectEndDate,
+                                projectClient.closingDay,
+                                projectClient.paymentMonthOffset,
+                                projectClient.paymentDay
+                            );
+                            updates.transactionDate = projectEndDate;
+                            updates.settlementDate = settlementDate;
+                        }
+
+                        batch.update(docSnap.ref, updates);
+                    });
+                }
             }
 
             await batch.commit();

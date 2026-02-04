@@ -11,11 +11,12 @@ import { Skeleton } from '../../components/ui';
 interface TransactionListProps {
     transactions: Transaction[];
     loading?: boolean;
+    viewMode?: 'accrual' | 'cash' | 'project';
     onEdit?: (transaction: Transaction) => void;
     onDelete?: (transaction: Transaction) => void;
 }
 
-export function TransactionList({ transactions, loading, onEdit, onDelete }: TransactionListProps) {
+export function TransactionList({ transactions, loading, viewMode = 'accrual', onEdit, onDelete }: TransactionListProps) {
     if (loading) {
         return (
             <div className="space-y-4">
@@ -58,11 +59,12 @@ export function TransactionList({ transactions, loading, onEdit, onDelete }: Tra
 
 interface TransactionItemProps {
     transaction: Transaction;
+    viewMode: 'accrual' | 'cash' | 'project';
     onEdit?: (transaction: Transaction) => void;
     onDelete?: (transaction: Transaction) => void;
 }
 
-function TransactionItem({ transaction, onEdit, onDelete }: TransactionItemProps) {
+function TransactionItem({ transaction, viewMode, onEdit, onDelete }: TransactionItemProps) {
     const [offsetX, setOffsetX] = useState(0);
 
     const bind = useDrag(
@@ -131,8 +133,8 @@ function TransactionItem({ transaction, onEdit, onDelete }: TransactionItemProps
                         </p>
                         {/* 日時 */}
                         <p className="text-gray-500 text-sm">
-                            {transaction.transactionDate
-                                ? format(transaction.transactionDate, 'M/d (E)', { locale: ja })
+                            {(viewMode === 'cash' ? (transaction.settlementDate || transaction.transactionDate) : transaction.transactionDate)
+                                ? format((viewMode === 'cash' ? (transaction.settlementDate || transaction.transactionDate) : transaction.transactionDate)!, 'M/d (E)', { locale: ja })
                                 : '-'}
                         </p>
                     </div>
