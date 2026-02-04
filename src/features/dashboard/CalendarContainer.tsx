@@ -145,6 +145,7 @@ export function CalendarContainer({
                             fullTransactions={transactions}
                             clients={clients}
                             onTransactionClick={onTransactionClick}
+                            onDateClick={onDateClick}
                         />
                     </motion.div>
                 )}

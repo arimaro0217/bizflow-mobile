@@ -35,13 +35,16 @@ interface CalendarProps {
     clients?: Client[];
     /** 取引クリック時のコールバック */
     onTransactionClick?: (transaction: Transaction) => void;
+    /** 日付クリック時のコールバック */
+    onDateClick?: (date: Date) => void;
 }
 
 export function Calendar({
     transactions = [],
     fullTransactions = [],
     clients = [],
-    onTransactionClick
+    onTransactionClick,
+    onDateClick
 }: CalendarProps) {
     const { selectedDate, setSelectedDate, calendarView, setCalendarView, viewMode, currentMonth, setCurrentMonth } = useAppStore();
     // currentMonth をローカル名 currentDate として扱う（既存ロジック維持のため）
@@ -79,21 +82,25 @@ export function Calendar({
     const DOUBLE_TAP_DELAY = 300; // ミリ秒
 
     // 日付をクリックした時の処理（選択済みの日の場合はポップアップを表示）
-    const handleDateClick = (day: Date) => {
+    const handleDateClick = (day: Date, isDblClick: boolean = false) => {
         const now = Date.now();
         const dateKey = day.toISOString();
         const lastTap = lastTapRef.current;
 
         // すでに選択されている日付を再度タップしたか、またはダブルタップの場合にポップアップを表示
+        // PCのダブルクリックイベント(isDblClick)の場合は無条件でPopupを開く
         const isSelectedTap = selectedDate && isSameDay(day, selectedDate);
-        const isDoubleTap = lastTap && lastTap.date === dateKey && (now - lastTap.time) < DOUBLE_TAP_DELAY;
+        const isManualDoubleTap = lastTap && lastTap.date === dateKey && (now - lastTap.time) < DOUBLE_TAP_DELAY;
 
-        // 常に日付を選択
+        // 常に日付を選択し、親にも通知
         setSelectedDate(day);
+        onDateClick?.(day);
 
-        if (isSelectedTap || isDoubleTap) {
+        if (isDblClick || isSelectedTap || isManualDoubleTap) {
             // ポップアップを表示
-            lastTapRef.current = null; // リセット
+            if (!isDblClick) {
+                lastTapRef.current = null; // 手動検知の場合はリセット
+            }
 
             // その日のトランザクションを取得
             const dayTxs = filterTransactionsByDate(fullTransactions, day, viewMode);
@@ -227,6 +234,7 @@ export function Calendar({
                                     key={day.toISOString()}
                                     whileTap={{ scale: 0.98 }}
                                     onClick={() => handleDateClick(day)}
+                                    onDoubleClick={() => handleDateClick(day, true)}
                                     className={cn(
                                         'relative flex flex-col items-center justify-start py-2 rounded-xl md:rounded-none transition-all overflow-hidden',
                                         // Mobile Styles
