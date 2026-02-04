@@ -54,7 +54,7 @@ export default function Dashboard() {
     const { transactions, loading: transactionsLoading, addTransaction, updateTransaction, deleteTransaction } = useTransactions(user?.uid);
     const { clients, addClient, updateClient, deleteClient, updateClientsOrder } = useClients(user?.uid);
     const { projects, addProject } = useProjects(user?.uid);
-    const { updateProject } = useProjectOperations(user?.uid);
+    const { updateProject, deleteProject } = useProjectOperations(user?.uid);
 
     // デバッグ: トランザクションのロード状況を確認
     console.log('[DEBUG] Transactions loaded:', transactions.length, 'viewMode:', viewMode);
@@ -158,19 +158,51 @@ export default function Dashboard() {
     const executeDeleteTransaction = async () => {
         if (!transactionToDelete) return;
 
-        // ノンブロッキング実行
-        deleteTransaction(transactionToDelete.id).catch((error) => {
+        try {
+            const isVirtual = transactionToDelete.id.startsWith('project-virtual-');
+            const projectId = transactionToDelete.projectId;
+
+            if (isVirtual && projectId) {
+                // 仮想トランザクション（案件そのもの）の削除
+                await deleteProject(projectId, true);
+                toast.success('案件を削除しました', {
+                    icon: <CheckCircle className="w-5 h-5" />,
+                });
+            } else if (projectId) {
+                // 案件に紐づく実トランザクションの削除
+                // 他に紐づくトランザクションがあるか確認
+                const otherTxs = transactions.filter(t => t.projectId === projectId && t.id !== transactionToDelete.id);
+
+                if (otherTxs.length > 0) {
+                    // 他にもある場合は、このトランザクションだけ削除
+                    await deleteTransaction(transactionToDelete.id);
+                    toast.success('取引を削除しました', {
+                        icon: <CheckCircle className="w-5 h-5" />,
+                    });
+                } else {
+                    // これが最後の一つなら、案件ごと削除しないと仮想トランザクションとして復活してしまう
+                    // → ユーザーの意図としては「この案件をやめる」可能性が高い
+                    await deleteProject(projectId, true);
+                    toast.success('案件と関連取引を削除しました', {
+                        icon: <CheckCircle className="w-5 h-5" />,
+                    });
+                }
+            } else {
+                // 通常のトランザクション削除
+                await deleteTransaction(transactionToDelete.id);
+                toast.success('取引を削除しました', {
+                    icon: <CheckCircle className="w-5 h-5" />,
+                });
+            }
+
+            haptic('success');
+        } catch (error) {
             console.error('削除に失敗しました:', error);
             haptic('error');
             toast.error('削除に失敗しました');
-        });
-
-        // 即座にUI更新
-        haptic('success');
-        toast.success('取引を削除しました', {
-            icon: <CheckCircle className="w-5 h-5" />,
-        });
-        setTransactionToDelete(null);
+        } finally {
+            setTransactionToDelete(null);
+        }
     };
 
     const handleCreateClient = async (data: ClientFormData) => {
@@ -651,7 +683,13 @@ export default function Dashboard() {
                 open={!!transactionToDelete}
                 onOpenChange={(open) => !open && setTransactionToDelete(null)}
                 title="取引を削除しますか？"
-                description="この操作は取り消せません。本当に削除してもよろしいですか？"
+                description={
+                    transactionToDelete?.projectId &&
+                        (transactionToDelete.id.startsWith('project-virtual-') ||
+                            !transactions.some(t => t.projectId === transactionToDelete.projectId && t.id !== transactionToDelete.id))
+                        ? "この取引は案件に紐づいています。削除すると、関連する案件情報も完全に削除されます。"
+                        : "この操作は取り消せません。本当に削除してもよろしいですか？"
+                }
                 confirmLabel="削除する"
                 variant="destructive"
                 onConfirm={executeDeleteTransaction}
