@@ -31,9 +31,23 @@ import { DragOverlayBar } from './DraggableProjectBar';
 import { ProjectPopover } from './ProjectPopover';
 import CalendarDayCell from './CalendarDayCell';
 import { useProjectOperations } from '../../../hooks/useProjectOperations';
+import { useAuth } from '../../../features/auth';
 import { useAppStore } from '../../../stores/appStore';
 
-// ...
+// =============================================================================
+// 型定義
+// =============================================================================
+
+interface SmartCalendarProps {
+    projects: Project[];
+    transactions: Transaction[];
+    onDateClick?: (date: Date) => void;
+    onProjectClick?: (project: Project) => void;
+}
+
+// =============================================================================
+// メインコンポーネント
+// =============================================================================
 
 export function SmartCalendar({
     projects,
@@ -43,10 +57,13 @@ export function SmartCalendar({
 }: SmartCalendarProps) {
     const { user } = useAuth();
     const { updateProject, deleteProject } = useProjectOperations(user?.uid);
-    const { currentMonth, setCurrentMonth } = useAppStore();
+    const { currentMonth, setCurrentMonth, calendarView, setCalendarView } = useAppStore();
     // currentMonth をローカル名 currentDate として扱う
     const currentDate = currentMonth;
-    const [viewMode, setViewMode] = useState<'month' | 'week'>('month');
+    // ローカルのviewModeを削除し、ストアのcalendarView（別名viewModeとして扱う）を使用
+    const viewMode = calendarView;
+    const setViewMode = setCalendarView;
+
     const [activeEvent, setActiveEvent] = useState<RenderableEvent | null>(null);
     const [selectedProject, setSelectedProject] = useState<Project | null>(null);
     const [selectedDateKey, setSelectedDateKey] = useState<string | null>(null);
@@ -74,7 +91,7 @@ export function SmartCalendar({
     // リサイズ中は表示用プロジェクトリストを書き換える（リアルタイムプレビュー）
     const displayProjects = React.useMemo(() => {
         if (!resizingState) return projects;
-        return projects.map(p =>
+        return projects.map((p: Project) =>
             p.id === resizingState.project.id
                 ? { ...p, endDate: resizingState.newEndDate }
                 : p

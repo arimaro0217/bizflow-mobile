@@ -1,15 +1,9 @@
-import { useState, useMemo, useRef } from 'react';
+import { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useDrag } from '@use-gesture/react';
 import {
-    startOfWeek,
-    endOfWeek,
-    startOfMonth,
-    endOfMonth,
-    eachDayOfInterval,
     format,
     isSameDay,
-    isSameMonth,
     addWeeks,
     subWeeks,
     addMonths,
@@ -20,6 +14,8 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useAppStore } from '../../stores/appStore';
 import { DateTransactionsSheet } from './components/DateTransactionsSheet';
+import { filterTransactionsByDate } from '../../lib/transactionHelpers';
+import { useCalendarGrid } from './hooks/useCalendarGrid';
 import type { Transaction, Client } from '../../types';
 
 // カレンダー表示用の軽量データ
@@ -58,28 +54,7 @@ export function Calendar({
 
     const weekDays = ['月', '火', '水', '木', '金', '土', '日'];
 
-    const days = useMemo(() => {
-        if (calendarView === 'week') {
-            const start = startOfWeek(currentDate, { weekStartsOn: 1 });
-            const end = endOfWeek(currentDate, { weekStartsOn: 1 });
-            return eachDayOfInterval({ start, end });
-        } else {
-            const start = startOfMonth(currentDate);
-            const end = endOfMonth(currentDate);
-            const monthDays = eachDayOfInterval({ start, end });
-
-            // 週の始まりまで埋める
-            // 月曜始まりでの曜日インデックス（月=0, 火=1, ..., 日=6）
-            const dayOfWeek = start.getDay();
-            const startPadding = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
-            const paddedStart = startOfWeek(start, { weekStartsOn: 1 });
-            const paddingDays = startPadding > 0
-                ? eachDayOfInterval({ start: paddedStart, end: new Date(start.getTime() - 86400000) })
-                : [];
-
-            return [...paddingDays, ...monthDays];
-        }
-    }, [currentDate, calendarView]);
+    const days = useCalendarGrid(currentDate, calendarView);
 
     const navigate = (direction: number) => {
         setDirection(direction);
@@ -117,13 +92,7 @@ export function Calendar({
             lastTapRef.current = null; // リセット
 
             // その日のトランザクションを取得
-            const dayTxs = fullTransactions.filter(t => {
-                // viewModeに応じて日付を判定
-                const txDate = viewMode === 'cash'
-                    ? (t.settlementDate || t.transactionDate)
-                    : t.transactionDate;
-                return txDate && isSameDay(txDate, day);
-            });
+            const dayTxs = filterTransactionsByDate(fullTransactions, day, viewMode);
 
             // 取引がある場合のみシートを開く
             if (dayTxs.length > 0) {

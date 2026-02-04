@@ -11,16 +11,12 @@
 
 import { useMemo } from 'react';
 import {
-    startOfMonth,
-    endOfMonth,
-    startOfWeek,
-    endOfWeek,
-    eachDayOfInterval,
     format,
     isSameDay,
     isBefore,
     isAfter,
 } from 'date-fns';
+import { useCalendarGrid } from './useCalendarGrid';
 import type { Project, Transaction } from '../../../types';
 
 // =============================================================================
@@ -99,25 +95,16 @@ export function useCalendarLayout(
             });
     }, [projects]);
 
+    // -------------------------------------------------------------------------
+    // 2. 表示範囲の日付グリッド生成（共通フック使用）
+    // -------------------------------------------------------------------------
+    const allDates = useCalendarGrid(currentDate, viewMode);
+
     return useMemo(() => {
-        // ---------------------------------------------------------------------
-        // 2. 表示範囲の日付グリッド生成
-        // ---------------------------------------------------------------------
         const today = new Date();
-        let start: Date;
-        let end: Date;
+        const start = allDates[0];
+        const end = allDates[allDates.length - 1];
 
-        if (viewMode === 'week') {
-            start = startOfWeek(currentDate, { weekStartsOn: 1 });
-            end = endOfWeek(currentDate, { weekStartsOn: 1 });
-        } else {
-            const monthStart = startOfMonth(currentDate);
-            const monthEnd = endOfMonth(currentDate);
-            start = startOfWeek(monthStart, { weekStartsOn: 1 });
-            end = endOfWeek(monthEnd, { weekStartsOn: 1 });
-        }
-
-        const allDates = eachDayOfInterval({ start, end });
         const days: CalendarDay[] = allDates.map(date => ({
             date,
             dateKey: format(date, 'yyyy-MM-dd'),
