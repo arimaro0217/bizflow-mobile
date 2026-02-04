@@ -31,7 +31,6 @@ import { DragOverlayBar } from './DraggableProjectBar';
 import { ProjectPopover } from './ProjectPopover';
 import { DateTransactionsSheet } from './DateTransactionsSheet';
 import CalendarDayCell from './CalendarDayCell';
-import { filterTransactionsByDate } from '../../../lib/transactionHelpers';
 import { useProjectOperations } from '../../../hooks/useProjectOperations';
 import { useAuth } from '../../../features/auth';
 import { useAppStore } from '../../../stores/appStore';
@@ -216,8 +215,18 @@ export function SmartCalendar({
                 lastTapRef.current = null;
             }
 
-            // その日のトランザクションを取得（viewModeを適切に考慮。projectモードでも基本は発生日でフィルタ）
-            const dayTxs = filterTransactionsByDate(transactions, date, 'accrual');
+            // その日のトランザクションを取得（useCalendarLayoutの集計ロジックと一致させる：決済日優先、なければ発生日）
+            const dayTxs = transactions.filter(t => {
+                const effectiveDate = t.settlementDate || t.transactionDate;
+                if (!effectiveDate) return false;
+
+                // date-fnsのisSameDayは0時0分補正などを行ってくれるが、
+                // ここでは日付オブジェクトの年月日で比較する（SmartCalendarのグリッドロジックに合わせる）
+                const d = new Date(effectiveDate);
+                return d.getFullYear() === date.getFullYear() &&
+                    d.getMonth() === date.getMonth() &&
+                    d.getDate() === date.getDate();
+            });
 
             if (dayTxs.length > 0) {
                 setDetailDate(date);
