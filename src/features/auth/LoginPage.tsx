@@ -115,8 +115,8 @@ export function LoginPage() {
                         {loading ? 'ログイン中...' : 'Googleでログイン'}
                     </button>
 
-                    <p className="text-center text-gray-500 text-xs mt-4">
-                        ログインすることで、利用規約とプライバシーポリシーに同意したものとみなされます。
+                    <p className="text-center text-gray-500 text-[10px] mt-4 opacity-30">
+                        v1.0.8 - ダイアログ背景改善版
                     </p>
                 </div>
             </motion.div>

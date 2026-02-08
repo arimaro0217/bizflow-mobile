@@ -317,6 +317,18 @@ export function Calendar({
                                             </div>
                                         )}
                                     </div>
+
+                                    {/* Ghost Hint: 取引がない日に「Double Tap」ヒントを表示 */}
+                                    {!hasIncome && !hasExpense && isCurrentMonth && (
+                                        <div
+                                            className="absolute inset-0 flex items-center justify-center pointer-events-none"
+                                            style={{ opacity: isSelected ? 1 : 0.3 }}
+                                        >
+                                            <div className="flex flex-col items-center justify-center">
+                                                <span className="text-[8px] font-medium text-primary-400">Tap</span>
+                                            </div>
+                                        </div>
+                                    )}
                                 </motion.button>
                             );
                         })}

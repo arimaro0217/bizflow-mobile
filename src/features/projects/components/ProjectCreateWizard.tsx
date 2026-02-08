@@ -300,7 +300,7 @@ export function ProjectCreateWizard({
     return (
         <Drawer.Root open={open} onOpenChange={onOpenChange} dismissible={false}>
             <Drawer.Portal>
-                <Drawer.Overlay className="fixed inset-0 bg-black/60 z-40" />
+                <Drawer.Overlay className="fixed inset-0 bg-black/90 z-40" />
                 <Drawer.Content
                     className="fixed bottom-0 left-0 right-0 z-50 bg-background rounded-t-3xl flex flex-col h-[95dvh]"
                     aria-describedby={undefined}

@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { cn } from '../../lib/utils';
+import { SpotlightTour } from '../onboarding/SpotlightTour';
 
 interface AppLayoutProps {
     children: ReactNode;
@@ -8,11 +9,14 @@ interface AppLayoutProps {
     className?: string;
 }
 
+
+
 export function AppLayout({ children, sidebar, header, className }: AppLayoutProps) {
     return (
         // min-h-dvh: Dynamic Viewport Height対応（モバイルブラウザのアドレスバー考慮）
         // pt-safe: iOSステータスバー/ノッチ回避
         <div className="min-h-dvh bg-surface-dark w-full text-foreground pt-[env(safe-area-inset-top)]">
+            <SpotlightTour />
             {/* Desktop Container */}
             <div className="mx-auto max-w-[1280px] min-h-dvh">
                 <div className="md:grid md:grid-cols-[280px_1fr] min-h-dvh">

@@ -5,26 +5,6 @@
             "queryScope": "COLLECTION",
             "fields": [
                 {
-                    "fieldPath": "transactionDate",
-                    "order": "DESCENDING"
-                }
-            ]
-        },
-        {
-            "collectionGroup": "transactions",
-            "queryScope": "COLLECTION",
-            "fields": [
-                {
-                    "fieldPath": "settlementDate",
-                    "order": "ASCENDING"
-                }
-            ]
-        },
-        {
-            "collectionGroup": "transactions",
-            "queryScope": "COLLECTION",
-            "fields": [
-                {
                     "fieldPath": "type",
                     "order": "ASCENDING"
                 },

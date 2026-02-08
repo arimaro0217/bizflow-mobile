@@ -12,6 +12,8 @@ import {
     getAuth,
     GoogleAuthProvider,
     signInWithPopup,
+    signInWithRedirect,
+    getRedirectResult,
     signOut as firebaseSignOut,
     connectAuthEmulator,
     onAuthStateChanged,
@@ -132,14 +134,31 @@ if (useEmulator) {
 // 認証ヘルパー関数
 // -----------------------------------------------------------------------------
 
-const googleProvider = new GoogleAuthProvider();
-
 /**
  * Googleポップアップでサインイン
  */
 export async function signInWithGoogle(): Promise<User> {
-    const result = await signInWithPopup(auth, googleProvider);
+    const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: 'select_account' });
+    const result = await signInWithPopup(auth, provider);
     return result.user;
+}
+
+/**
+ * Googleリダイレクトでサインイン (モバイル用)
+ */
+export async function signInWithGoogleRedirect(): Promise<void> {
+    const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: 'select_account' });
+    await signInWithRedirect(auth, provider);
+}
+
+/**
+ * リダイレクト後の結果を取得
+ */
+export async function getGoogleRedirectResult(): Promise<User | null> {
+    const result = await getRedirectResult(auth);
+    return result ? result.user : null;
 }
 
 /**

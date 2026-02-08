@@ -1,5 +1,7 @@
 import React from 'react';
 import { format } from 'date-fns';
+import { Plus } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../../../lib/utils';
 import type { Project } from '../../../types';
 import type { CalendarDay, RenderableEvent, DailyTransactionSummary } from '../types';
@@ -45,6 +47,7 @@ const CalendarDayCell = React.memo(function CalendarDayCell({
 
     return (
         <DroppableCalendarCell
+            id={day.isToday ? "tour-target-today" : undefined}
             date={day.date}
             dateKey={day.dateKey}
             className={cn(
@@ -138,6 +141,27 @@ const CalendarDayCell = React.memo(function CalendarDayCell({
                     )}
                 </div>
             )}
+            {/* Ghost Hint: 何もないセルに「ここだよ」と教える */}
+            <AnimatePresence>
+                {events.length === 0 && (
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                        {/* 通常時は極めて薄く(opacity-0 or 5)、選択時に浮かび上がる */}
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.8 }}
+                            animate={{
+                                opacity: isSelected ? 1 : 0.3,
+                                scale: isSelected ? 1 : 0.95
+                            }}
+                            exit={{ opacity: 0, scale: 0.8 }}
+                            transition={{ duration: 0.2 }}
+                            className="flex flex-col items-center justify-center"
+                        >
+                            <Plus className="w-6 h-6 text-primary-400 mb-0.5" strokeWidth={3} />
+                            <span className="text-[9px] font-medium text-primary-400">Double Tap</span>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
         </DroppableCalendarCell>
     );
 }, (prev, next) => {

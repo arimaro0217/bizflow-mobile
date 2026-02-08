@@ -120,6 +120,7 @@ export function FloatingActionMenu({
 
             {/* FABコンテナ */}
             <div
+                id="tour-target-fab"
                 className="fixed right-4 z-50"
                 style={{ bottom: 'calc(1rem + env(safe-area-inset-bottom))' }}
             >

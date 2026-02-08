@@ -119,7 +119,7 @@ export function TransactionForm({
                 dismissible={false}
             >
                 <Drawer.Portal>
-                    <Drawer.Overlay className="fixed inset-0 bg-black/50 z-40" />
+                    <Drawer.Overlay className="fixed inset-0 bg-black/90 z-40" />
                     <Drawer.Content
                         className="fixed bottom-0 left-0 right-0 z-50 outline-none"
                     >

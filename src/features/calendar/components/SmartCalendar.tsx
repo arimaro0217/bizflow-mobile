@@ -284,7 +284,7 @@ export function SmartCalendar({
             onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
         >
-            <div className="bg-surface rounded-2xl overflow-hidden shadow-sm border border-white/5">
+            <div id="tour-target-calendar" className="bg-surface rounded-2xl overflow-hidden shadow-sm border border-white/5">
                 {/* ヘッダー: 月ナビゲーション & 表示切替 */}
                 <div className="flex flex-col md:flex-row items-center justify-between px-4 py-4 border-b border-white/5 gap-4">
                     {/* ナビゲーション */}

@@ -20,6 +20,7 @@ export interface DroppableCalendarCellProps {
     dateKey: string;
     children: React.ReactNode;
     className?: string;
+    id?: string;
     onClick?: (date: Date) => void;
     onDoubleClick?: (date: Date) => void;
 }
@@ -29,6 +30,7 @@ export function DroppableCalendarCell({
     dateKey,
     children,
     className,
+    id,
     onClick,
     onDoubleClick,
 }: DroppableCalendarCellProps) {
@@ -53,6 +55,7 @@ export function DroppableCalendarCell({
 
     return (
         <div
+            id={id}
             ref={setNodeRef}
             onClick={() => onClick?.(date)}
             onDoubleClick={() => onDoubleClick?.(date)}

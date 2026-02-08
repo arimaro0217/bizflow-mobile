@@ -11,6 +11,8 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
     signInWithGoogle,
+    signInWithGoogleRedirect,
+    getGoogleRedirectResult,
     signOut as firebaseSignOut,
     observeAuthState,
     type User,
@@ -53,8 +55,27 @@ export function useAuth(): UseAuthReturn {
         error: null,
     });
 
-    // 認証状態の監視
+    // 認証状態の監視 & リダイレクト結果の確認
     useEffect(() => {
+        // マウント時にリダイレクトからの復帰がないか確認
+        const checkRedirect = async () => {
+            try {
+                const user = await getGoogleRedirectResult();
+                if (user) {
+                    setState(prev => ({ ...prev, user, loading: false }));
+                }
+            } catch (error) {
+                console.error('Redirect sign-in error:', error);
+                setState(prev => ({
+                    ...prev,
+                    loading: false,
+                    error: error instanceof Error ? error : new Error('リダイレクトログインに失敗しました')
+                }));
+            }
+        };
+
+        checkRedirect();
+
         const unsubscribe = observeAuthState((user) => {
             setState({
                 user,
@@ -71,8 +92,16 @@ export function useAuth(): UseAuthReturn {
     const handleSignIn = useCallback(async () => {
         setState((prev) => ({ ...prev, loading: true, error: null }));
         try {
-            await signInWithGoogle();
-            // ユーザー情報は onAuthStateChanged で自動更新される
+            // モバイル環境（iPhone/Android）かつPWA/Mobileブラウザの場合はリダイレクト
+            const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
+            if (isMobile) {
+                await signInWithGoogleRedirect();
+                // リダイレクト後はこのページを離れるため、ここでは後続処理は不要
+            } else {
+                await signInWithGoogle();
+                // ユーザー情報は onAuthStateChanged で自動更新される
+            }
         } catch (error) {
             setState((prev) => ({
                 ...prev,
