@@ -7,13 +7,13 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      // フロントエンドで更新を制御するため 'auto' を使用
+      // フロントエンドで更新を制御するため 'prompt' を使用（ユーザーに更新ボタンを表示）
       injectRegister: 'auto',
-      registerType: 'autoUpdate',
+      registerType: 'prompt',
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'pwa-192x192.png', 'pwa-512x512.png'],
       manifest: {
-        name: 'BizFlow Mobile',
-        short_name: 'BizFlow',
+        name: 'GANTACT',
+        short_name: 'GANTACT',
         description: '中小企業向け資金繰り管理アプリ - スマホで爆速入力、キャッシュフロー即時可視化',
         theme_color: '#1f2937',
         background_color: '#ffffff',
@@ -45,14 +45,14 @@ export default defineConfig({
             sizes: '1080x1920',
             type: 'image/png',
             form_factor: 'narrow',
-            label: 'BizFlow Mobile - ホーム画面',
+            label: 'GANTACT - ホーム画面',
           },
           {
             src: 'screenshot-wide.png',
             sizes: '1920x1080',
             type: 'image/png',
             form_factor: 'wide',
-            label: 'BizFlow Mobile - デスクトップ表示',
+            label: 'GANTACT - デスクトップ表示',
           },
         ],
       },
@@ -73,7 +73,7 @@ export default defineConfig({
               cacheName: 'static-resources',
               expiration: {
                 maxEntries: 100,
-                maxAgeSeconds: 60 * 60 * 24 * 30, // 30 days
+                maxAgeSeconds: 60 * 60 * 24, // 1 day (faster updates)
               },
             },
           },

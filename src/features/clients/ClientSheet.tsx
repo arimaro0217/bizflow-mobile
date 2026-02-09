@@ -62,14 +62,14 @@ export function ClientSheet({
     };
 
     return (
-        <Drawer.Root open={open} onOpenChange={onOpenChange} dismissible={false}>
+        <Drawer.Root open={open} onOpenChange={onOpenChange} dismissible={false} handleOnly={true}>
             <Drawer.Portal>
                 <Drawer.Overlay className="fixed inset-0 bg-black/50 z-40" />
                 <Drawer.Content className="fixed bottom-0 left-0 right-0 z-50 outline-none">
                     <div className="bg-surface-dark rounded-t-3xl max-h-[85dvh] flex flex-col">
-                        {/* ハンドル */}
-                        <div className="flex justify-center py-3">
-                            <div className="w-12 h-1.5 bg-gray-600 rounded-full" />
+                        {/* ハンドル - ここだけがドラッグ可能 */}
+                        <div className="flex justify-center py-4 cursor-grab active:cursor-grabbing group">
+                            <Drawer.Handle className="w-12 h-1.5 bg-gray-600 group-hover:bg-gray-500 group-active:bg-primary-500 rounded-full transition-colors shadow-sm" />
                         </div>
 
                         {/* ヘッダー */}
@@ -356,16 +356,16 @@ export function ClientFormSheet({ open, onOpenChange, onSubmit, initialClient = 
     ];
 
     return (
-        <Drawer.Root open={open} onOpenChange={onOpenChange} dismissible={false}>
+        <Drawer.Root open={open} onOpenChange={onOpenChange} dismissible={false} handleOnly={true}>
             <Drawer.Portal>
                 <Drawer.Overlay className="fixed inset-0 bg-black/50 z-40" />
                 <Drawer.Content
                     className="fixed bottom-0 left-0 right-0 z-50 outline-none"
                 >
                     <div className="bg-surface-dark rounded-t-3xl max-h-[85dvh] flex flex-col">
-                        {/* ハンドル */}
-                        <div className="flex justify-center py-3">
-                            <div className="w-12 h-1.5 bg-gray-600 rounded-full" />
+                        {/* ハンドル - ここだけがドラッグ可能 */}
+                        <div className="flex justify-center py-4 cursor-grab active:cursor-grabbing group">
+                            <Drawer.Handle className="w-12 h-1.5 bg-gray-600 group-hover:bg-gray-500 group-active:bg-primary-500 rounded-full transition-colors shadow-sm" />
                         </div>
 
                         {/* ヘッダー */}

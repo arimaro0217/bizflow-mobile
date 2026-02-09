@@ -306,12 +306,15 @@ export default function Dashboard() {
     };
 
     const handleReorderClients = async (orderedIds: string[]) => {
-        updateClientsOrder(orderedIds).catch((error) => {
+        try {
+            await updateClientsOrder(orderedIds);
+            haptic('success');
+            toast.success('並び順を保存しました');
+        } catch (error) {
             console.error('順序の更新に失敗:', error);
+            haptic('error');
             toast.error('並び替えの保存に失敗しました');
-        });
-        // 並び替えはUI側でReact stateとして即座に反映済み（Reorderコンポーネント内）なので
-        // ここでは追加のUI更新は不要だが、エラーハンドリングだけしておく
+        }
     };
 
     // 案件編集開始
@@ -445,7 +448,7 @@ export default function Dashboard() {
                     <Wallet className="w-6 h-6 text-white" />
                 </div>
                 <span className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-400">
-                    BizFlow
+                    GANTACT
                 </span>
             </div>
 
@@ -488,7 +491,7 @@ export default function Dashboard() {
 
     const headerContent = (
         <div className="flex items-center justify-between h-16 px-4 md:px-0 w-full">
-            <h1 className="text-xl font-bold text-white md:hidden">BizFlow</h1>
+            <h1 className="text-xl font-bold text-white md:hidden">GANTACT</h1>
 
             <div className="hidden md:block">
                 <h2 className="text-lg font-semibold text-white">ダッシュボード</h2>

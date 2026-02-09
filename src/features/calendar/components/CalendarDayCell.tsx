@@ -149,7 +149,7 @@ const CalendarDayCell = React.memo(function CalendarDayCell({
                         <motion.div
                             initial={{ opacity: 0, scale: 0.8 }}
                             animate={{
-                                opacity: isSelected ? 1 : 0.3,
+                                opacity: isSelected ? 1 : 0.15,
                                 scale: isSelected ? 1 : 0.95
                             }}
                             exit={{ opacity: 0, scale: 0.8 }}

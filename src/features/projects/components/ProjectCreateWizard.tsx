@@ -19,6 +19,9 @@ import { format, addDays } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import type { Client, ProjectColor, Project } from '../../../types';
 import { DatePicker } from '../../../components/ui/DatePicker';
+import { Keypad } from '../../../components/ui/Keypad';
+import { useAppStore } from '../../../stores/appStore';
+import { formatCurrency } from '../../../lib/utils';
 
 // =============================================================================
 // Props
@@ -109,6 +112,8 @@ export function ProjectCreateWizard({
         isEditMode,
     } = useProjectWizard(initialDate, initialProject);
 
+    const { openKeypad } = useAppStore();
+
     const { watch, setValue, handleSubmit, formState: { errors } } = form;
 
     // 選択中のクライアント
@@ -139,6 +144,19 @@ export function ProjectCreateWizard({
         },
         [setValue]
     );
+
+    // 金額入力の確定処理
+    const handleAmountConfirm = useCallback(
+        (value: string) => {
+            setValue('amount', value);
+        },
+        [setValue]
+    );
+
+    // スクロールリセット処理（iOSでのキーボード表示後のズレ対策）
+    const handleInputBlur = useCallback(() => {
+        window.scrollTo(0, 0);
+    }, []);
 
     // 編集モード時または新規作成戻り時のクライアント復元
     useEffect(() => {
@@ -248,20 +266,6 @@ export function ProjectCreateWizard({
         }
     }, [open, resetWizard]);
 
-    // 金額のフォーマット
-    const formatAmount = (value: string) => {
-        const num = value.replace(/[^0-9]/g, '');
-        if (!num) return '';
-        return Number(num).toLocaleString();
-    };
-
-    const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        // 全角数字を半角に変換
-        let val = e.target.value.replace(/[０-９]/g, (s) => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
-        const raw = val.replace(/[^0-9]/g, '');
-        setValue('amount', raw);
-    };
-
     // タグ操作
     const handleAddTag = () => {
         if (!tagInput.trim()) return;
@@ -298,7 +302,7 @@ export function ProjectCreateWizard({
     };
 
     return (
-        <Drawer.Root open={open} onOpenChange={onOpenChange} dismissible={false}>
+        <Drawer.Root open={open} onOpenChange={onOpenChange} dismissible={false} handleOnly={true}>
             <Drawer.Portal>
                 <Drawer.Overlay className="fixed inset-0 bg-black/90 z-40" />
                 <Drawer.Content
@@ -308,8 +312,10 @@ export function ProjectCreateWizard({
                     {/* アクセシビリティ用の非表示タイトル */}
                     <Drawer.Title className="sr-only">案件登録</Drawer.Title>
 
-                    {/* ハンドル */}
-                    <div className="mx-auto w-12 h-1.5 flex-shrink-0 rounded-full bg-gray-600 my-4" />
+                    {/* ハンドル - ここだけがドラッグ可能 */}
+                    <div className="mx-auto w-full flex justify-center pt-4 pb-2 cursor-grab active:cursor-grabbing group">
+                        <Drawer.Handle className="w-16 h-1.5 flex-shrink-0 rounded-full bg-gray-600 group-hover:bg-gray-500 group-active:bg-primary-500 transition-colors shadow-sm" />
+                    </div>
 
                     {/* ヘッダー */}
                     <div className="flex items-center justify-between px-4 pb-4 border-b border-white/5">
@@ -397,8 +403,8 @@ export function ProjectCreateWizard({
                                     <div className="space-y-6">
                                         {/* 取引先選択 */}
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-400 mb-2">
-                                                取引先 <span className="text-expense">*</span>
+                                            <label className="block text-base font-bold text-gray-100 mb-2">
+                                                取引先 <span className="text-red-400">*</span>
                                             </label>
                                             <ClientSelectField
                                                 value={watchedValues.clientId}
@@ -418,6 +424,7 @@ export function ProjectCreateWizard({
                                                 type="text"
                                                 value={watchedValues.title}
                                                 onChange={(e) => setValue('title', e.target.value)}
+                                                onBlur={handleInputBlur}
                                                 placeholder="例: ◯◯様邸 改修工事"
                                                 className="w-full h-14 px-4 bg-surface-light rounded-xl text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500 text-lg"
                                             />
@@ -491,6 +498,7 @@ export function ProjectCreateWizard({
                                                     type="text"
                                                     value={tagInput}
                                                     onChange={(e) => setTagInput(e.target.value)}
+                                                    onBlur={handleInputBlur}
                                                     onKeyDown={(e) => {
                                                         if (e.key === 'Enter') {
                                                             e.preventDefault();
@@ -626,15 +634,19 @@ export function ProjectCreateWizard({
                                                 金額（税抜） <span className="text-expense">*</span>
                                             </label>
                                             <div className="relative">
-                                                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-2xl text-gray-400">¥</span>
-                                                <input
-                                                    type="text"
-                                                    inputMode="numeric"
-                                                    value={formatAmount(watchedValues.amount)}
-                                                    onChange={handleAmountChange}
-                                                    placeholder="0"
-                                                    className="w-full h-20 pl-10 pr-4 bg-surface-light rounded-xl text-white text-4xl font-bold text-center tracking-tight focus:outline-none focus:ring-2 focus:ring-primary-500"
-                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={openKeypad}
+                                                    className="w-full h-20 px-4 bg-surface-light rounded-xl text-white flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                                                >
+                                                    <span className="text-2xl text-gray-400">¥</span>
+                                                    <span className={cn(
+                                                        "text-4xl font-bold tracking-tight",
+                                                        watchedValues.amount && watchedValues.amount !== '0' ? "text-white" : "text-gray-500"
+                                                    )}>
+                                                        {formatCurrency(watchedValues.amount || '0')}
+                                                    </span>
+                                                </button>
                                             </div>
                                             {errors.amount && (
                                                 <p className="text-expense text-sm mt-1">{errors.amount.message}</p>
@@ -698,6 +710,7 @@ export function ProjectCreateWizard({
                                                     type="text"
                                                     value={urlInput}
                                                     onChange={(e) => setUrlInput(e.target.value)}
+                                                    onBlur={handleInputBlur}
                                                     onKeyDown={(e) => {
                                                         if (e.key === 'Enter') {
                                                             e.preventDefault();
@@ -748,6 +761,7 @@ export function ProjectCreateWizard({
                                             <textarea
                                                 value={watchedValues.memo || ''}
                                                 onChange={(e) => setValue('memo', e.target.value)}
+                                                onBlur={handleInputBlur}
                                                 placeholder="追加のメモがあれば入力..."
                                                 rows={3}
                                                 className="w-full px-4 py-3 bg-surface-light rounded-xl text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"
@@ -773,6 +787,11 @@ export function ProjectCreateWizard({
                     onOpenChange={setIsEndDatePickerOpen}
                     value={watchedValues.endDate || watchedValues.startDate || new Date()}
                     onConfirm={(date) => setValue('endDate', date)}
+                />
+                {/* キーパッドを追加 */}
+                <Keypad
+                    onConfirm={handleAmountConfirm}
+                    initialValue={watchedValues.amount}
                 />
             </Drawer.Portal>
         </Drawer.Root>

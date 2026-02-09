@@ -41,7 +41,7 @@ export function ConfirmDrawer({
     };
 
     return (
-        <Drawer.Root open={open} onOpenChange={onOpenChange}>
+        <Drawer.Root open={open} onOpenChange={onOpenChange} handleOnly={true}>
             <Drawer.Portal>
                 <Drawer.Overlay className="fixed inset-0 bg-black/50 z-50" />
                 <Drawer.Content
@@ -51,9 +51,9 @@ export function ConfirmDrawer({
                     onTouchStart={(e) => e.stopPropagation()}
                 >
                     <div className="bg-surface-dark rounded-t-3xl p-6 pb-safe">
-                        {/* ハンドル */}
-                        <div className="flex justify-center mb-6">
-                            <div className="w-12 h-1.5 bg-gray-600 rounded-full" />
+                        {/* ハンドル - ここだけがドラッグ可能 */}
+                        <div className="flex justify-center py-4 cursor-grab active:cursor-grabbing group">
+                            <Drawer.Handle className="w-12 h-1.5 bg-gray-600 group-hover:bg-gray-500 group-active:bg-primary-500 rounded-full transition-colors shadow-sm" />
                         </div>
 
                         <div className="flex flex-col items-center text-center mb-8">

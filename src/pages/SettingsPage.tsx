@@ -136,7 +136,7 @@ export default function SettingsPage({ onBack, onNavigate }: SettingsPageProps) 
                 </div>
 
                 <div className="mt-8 text-center">
-                    <p className="text-xs text-gray-600">BizFlow v1.0.0</p>
+                    <p className="text-xs text-gray-600">GANTACT v1.0.0</p>
                 </div>
             </div>
 

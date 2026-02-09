@@ -106,9 +106,9 @@ export function DatePicker({ open, onOpenChange, value, onConfirm }: DatePickerP
                             onPointerDown={(e) => e.stopPropagation()}
                             onTouchStart={(e) => e.stopPropagation()}
                         >
-                            {/* ハンドル（モバイルのみ） */}
-                            <div className="flex justify-center py-3 md:hidden">
-                                <div className="w-12 h-1.5 bg-gray-600 rounded-full" />
+                            {/* ハンドル（モバイルのみ - 視覚的一貫性のため） */}
+                            <div className="flex justify-center py-4 md:hidden cursor-grab active:cursor-grabbing group">
+                                <div className="w-12 h-1.5 bg-gray-600 group-hover:bg-gray-500 group-active:bg-primary-500 rounded-full transition-colors shadow-sm" />
                             </div>
 
                             {/* ヘッダー */}

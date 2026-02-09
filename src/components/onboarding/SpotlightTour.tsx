@@ -174,7 +174,7 @@ export function SpotlightTour() {
                         style={{ zIndex: 100 }}
                     >
                         <div className={`${cardStyle} max-w-sm w-full text-center`}>
-                            <h2 className="text-2xl font-bold mb-3 text-white">BizFlowへようこそ</h2>
+                            <h2 className="text-2xl font-bold mb-3 text-white">GANTACTへようこそ</h2>
                             <p className="text-gray-300 mb-8 text-sm leading-relaxed">
                                 案件管理と資金繰りを劇的にシンプルにする<br />
                                 全く新しい体験がここから始まります。

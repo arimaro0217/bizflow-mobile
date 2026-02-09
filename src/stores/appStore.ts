@@ -83,7 +83,7 @@ export const useAppStore = create<AppState>()(
             setActiveSheet: (sheet) => set({ activeSheet: sheet }),
         }),
         {
-            name: 'bizflow-app-state',
+            name: 'gantact-app-state',
             partialize: (state) => ({
                 viewMode: state.viewMode,
                 calendarView: state.calendarView,

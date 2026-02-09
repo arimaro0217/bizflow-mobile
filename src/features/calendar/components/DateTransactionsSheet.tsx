@@ -64,14 +64,14 @@ export function DateTransactionsSheet({
     };
 
     return (
-        <Drawer.Root open={open} onOpenChange={onOpenChange} dismissible={false}>
+        <Drawer.Root open={open} onOpenChange={onOpenChange} dismissible={false} handleOnly={true}>
             <Drawer.Portal>
                 <Drawer.Overlay className="fixed inset-0 bg-black/50 z-40" />
                 <Drawer.Content className="fixed bottom-0 left-0 right-0 z-50 outline-none max-h-[80vh] flex flex-col">
                     <div className="bg-surface rounded-t-2xl flex flex-col max-h-[80dvh]">
-                        {/* ハンドル */}
-                        <div className="flex justify-center pt-3 pb-2">
-                            <div className="w-10 h-1 rounded-full bg-gray-600" />
+                        {/* ハンドル - ここだけがドラッグ可能 */}
+                        <div className="flex justify-center py-4 cursor-grab active:cursor-grabbing group">
+                            <Drawer.Handle className="w-10 h-1 rounded-full bg-gray-600 group-hover:bg-gray-500 group-active:bg-primary-500 transition-colors shadow-sm" />
                         </div>
 
                         {/* ヘッダー */}

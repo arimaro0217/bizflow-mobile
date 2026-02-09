@@ -322,7 +322,7 @@ export function Calendar({
                                     {!hasIncome && !hasExpense && isCurrentMonth && (
                                         <div
                                             className="absolute inset-0 flex items-center justify-center pointer-events-none"
-                                            style={{ opacity: isSelected ? 1 : 0.3 }}
+                                            style={{ opacity: isSelected ? 1 : 0.15 }}
                                         >
                                             <div className="flex flex-col items-center justify-center">
                                                 <span className="text-[8px] font-medium text-primary-400">Tap</span>

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Drawer } from 'vaul';
 import { addMonths } from 'date-fns';
 import {
@@ -92,6 +92,11 @@ export function RecurringMasterForm({
         setAmount(value);
     };
 
+    // スクロールリセット処理（iOSでのキーボード表示後のズレ対策）
+    const handleInputBlur = useCallback(() => {
+        window.scrollTo(0, 0);
+    }, []);
+
     const handleSubmit = () => {
         if (amount === '0' || !amount || !title.trim()) return;
 
@@ -127,6 +132,7 @@ export function RecurringMasterForm({
                 open={open}
                 onOpenChange={onOpenChange}
                 dismissible={!isKeypadOpen}
+                handleOnly={true}
             >
                 <Drawer.Portal>
                     <Drawer.Overlay className="fixed inset-0 bg-black/50 z-40" />
@@ -137,9 +143,9 @@ export function RecurringMasterForm({
                         onTouchStart={(e) => e.stopPropagation()}
                     >
                         <div className="bg-surface-dark rounded-t-3xl max-h-[90vh] flex flex-col">
-                            {/* ハンドル */}
-                            <div className="flex justify-center py-3">
-                                <div className="w-12 h-1.5 bg-gray-600 rounded-full" />
+                            {/* ハンドル - ここだけがドラッグ可能 */}
+                            <div className="flex justify-center py-4 cursor-grab active:cursor-grabbing group">
+                                <Drawer.Handle className="w-12 h-1.5 bg-gray-600 group-hover:bg-gray-500 group-active:bg-primary-500 rounded-full transition-colors shadow-sm" />
                             </div>
 
                             {/* ヘッダー */}
@@ -160,6 +166,7 @@ export function RecurringMasterForm({
                                         type="text"
                                         value={title}
                                         onChange={(e) => setTitle(e.target.value)}
+                                        onBlur={handleInputBlur}
                                         placeholder="例: 家賃、サーバー代"
                                         className="w-full px-4 py-3 bg-surface rounded-xl text-white placeholder-gray-500 outline-none focus:ring-2 focus:ring-primary-500"
                                     />

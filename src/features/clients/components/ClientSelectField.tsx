@@ -197,15 +197,17 @@ export const ClientSelectField = memo(function ClientSelectField({
             )}
 
             {/* 選択用Bottom Sheet */}
-            <Drawer.Root open={isOpen} onOpenChange={setIsOpen} dismissible={false}>
+            <Drawer.Root open={isOpen} onOpenChange={setIsOpen} dismissible={false} handleOnly={true}>
                 <Drawer.Portal>
                     <Drawer.Overlay className="fixed inset-0 bg-black/60 z-40" />
                     <Drawer.Content
                         className="fixed bottom-0 left-0 right-0 z-50 bg-background rounded-t-3xl flex flex-col max-h-[85dvh]"
                         aria-describedby={undefined}
                     >
-                        {/* ハンドル */}
-                        <div className="mx-auto w-12 h-1.5 flex-shrink-0 rounded-full bg-gray-600 my-4" />
+                        {/* ハンドル - ここだけがドラッグ可能 */}
+                        <div className="flex justify-center py-4 cursor-grab active:cursor-grabbing group">
+                            <Drawer.Handle className="w-12 h-1.5 flex-shrink-0 rounded-full bg-gray-600 group-hover:bg-gray-500 group-active:bg-primary-500 transition-colors shadow-sm" />
+                        </div>
 
                         {/* ヘッダー */}
                         <div className="px-4 pb-4 flex items-center justify-between">

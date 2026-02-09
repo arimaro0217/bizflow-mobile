@@ -104,11 +104,15 @@ export function Keypad({ onConfirm, onCancel, initialValue = '' }: KeypadProps) 
             onConfirm(displayValue);
         }
         closeKeypad();
+        // キーパッドを閉じた後に表示位置をリセット（iOS等でのレイアウト崩れ防止）
+        window.scrollTo(0, 0);
     }, [displayValue, previousValue, operator, onConfirm, closeKeypad]);
 
     const handleCancel = useCallback(() => {
         onCancel?.();
         closeKeypad();
+        // キャンセル時も表示位置をリセット
+        window.scrollTo(0, 0);
     }, [onCancel, closeKeypad]);
 
     // キーボードイベントリスナー（PC/外付けキーボード対応）

@@ -34,8 +34,8 @@ export function LoginPage() {
                     transition={{ delay: 0.2, duration: 0.5 }}
                     className="text-center mb-12"
                 >
-                    <h1 className="text-3xl font-bold text-white mb-2">BizFlow Mobile</h1>
-                    <p className="text-gray-400">資金繰りをスマートに管理</p>
+                    <h1 className="text-3xl font-bold text-white mb-2">GANTACT</h1>
+                    <p className="text-gray-400">経営者のために「ポケットの中の作戦室」</p>
                 </motion.div>
 
                 {/* 機能紹介 */}
@@ -116,7 +116,7 @@ export function LoginPage() {
                     </button>
 
                     <p className="text-center text-gray-500 text-[10px] mt-4 opacity-30">
-                        v1.0.8 - ダイアログ背景改善版
+                        v1.0.11 - Ghost Hint 15%
                     </p>
                 </div>
             </motion.div>

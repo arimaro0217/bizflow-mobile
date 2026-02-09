@@ -105,14 +105,14 @@ export function ProjectDetailSheet({
     if (!project) return null;
 
     return (
-        <Drawer.Root open={open} onOpenChange={onOpenChange}>
+        <Drawer.Root open={open} onOpenChange={onOpenChange} handleOnly={true}>
             <Drawer.Portal>
                 <Drawer.Overlay className="fixed inset-0 bg-black/50 z-40" />
                 <Drawer.Content className="fixed bottom-0 left-0 right-0 z-50 outline-none max-h-[90vh] flex flex-col">
                     <div className="bg-surface-dark rounded-t-3xl flex flex-col min-h-0 flex-1">
-                        {/* ハンドル */}
-                        <div className="flex justify-center py-3 shrink-0">
-                            <div className="w-12 h-1.5 bg-gray-600 rounded-full" />
+                        {/* ハンドル - ここだけがドラッグ可能 */}
+                        <div className="flex justify-center py-4 shrink-0 cursor-grab active:cursor-grabbing group">
+                            <Drawer.Handle className="w-12 h-1.5 bg-gray-600 group-hover:bg-gray-500 group-active:bg-primary-500 rounded-full transition-colors shadow-sm" />
                         </div>
 
                         {/* ヘッダー（Sticky） */}

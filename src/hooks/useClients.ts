@@ -92,7 +92,7 @@ export function useClients(uid: string | undefined): UseClientsReturn {
         const collectionRef = getCollectionRef();
         if (!collectionRef) return;
 
-        const q = query(collectionRef, orderBy('name', 'asc'));
+        const q = query(collectionRef, orderBy('sortOrder', 'asc'), orderBy('name', 'asc'));
 
         const unsubscribe = onSnapshot(
             q,
