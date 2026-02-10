@@ -57,35 +57,44 @@ export function useAuth(): UseAuthReturn {
 
     // 認証状態の監視 & リダイレクト結果の確認
     useEffect(() => {
-        // マウント時にリダイレクトからの復帰がないか確認
-        const checkRedirect = async () => {
+        let unsubscribe: (() => void) | undefined;
+
+        const initAuth = async () => {
+            // 1. まずリダイレクト結果を確認（モバイル等はこれでログイン完了する）
             try {
-                const user = await getGoogleRedirectResult();
-                if (user) {
-                    setState(prev => ({ ...prev, user, loading: false }));
+                const redirectUser = await getGoogleRedirectResult();
+                if (redirectUser) {
+                    console.log('Redirect sign-in successful:', redirectUser.uid);
+                    // リダイレクト成功時は、リスナー設定前に一旦ステート更新（ちらつき防止）
+                    setState(prev => ({ ...prev, user: redirectUser }));
                 }
             } catch (error) {
                 console.error('Redirect sign-in error:', error);
                 setState(prev => ({
                     ...prev,
-                    loading: false,
                     error: error instanceof Error ? error : new Error('リダイレクトログインに失敗しました')
                 }));
+            } finally {
+                // 2. リダイレクト確認後に常時監視リスナーを設定
+                // これにより「リダイレクト処理中なのに未ログインと判定される」のを防ぐ
+                unsubscribe = observeAuthState((user) => {
+                    console.log('Auth state changed:', user ? user.uid : 'null');
+                    setState(prev => ({
+                        ...prev,
+                        user,
+                        loading: false, // ここで初めてローディング完了とする
+                        error: null,
+                    }));
+                });
             }
         };
 
-        checkRedirect();
-
-        const unsubscribe = observeAuthState((user) => {
-            setState({
-                user,
-                loading: false,
-                error: null,
-            });
-        });
+        initAuth();
 
         // クリーンアップ
-        return () => unsubscribe();
+        return () => {
+            if (unsubscribe) unsubscribe();
+        };
     }, []);
 
     // Googleログイン

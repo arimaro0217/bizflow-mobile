@@ -5,6 +5,7 @@ import Decimal from 'decimal.js';
 import { Delete, Check, X } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useAppStore } from '../../stores/appStore';
+import { useVisualViewport } from '../../hooks/useVisualViewport';
 
 interface KeypadProps {
     onConfirm: (value: string) => void;
@@ -20,6 +21,8 @@ export function Keypad({ onConfirm, onCancel, initialValue = '' }: KeypadProps) 
     const [previousValue, setPreviousValue] = useState<string | null>(null);
     const [operator, setOperator] = useState<Operator>(null);
     const [waitingForOperand, setWaitingForOperand] = useState(false);
+
+    const viewport = useVisualViewport();
 
     useEffect(() => {
         if (initialValue) {
@@ -196,6 +199,17 @@ export function Keypad({ onConfirm, onCancel, initialValue = '' }: KeypadProps) 
         ['C', '0', '00', '+'],
     ];
 
+    // ビジュアルビューポートに合わせたスタイル
+    // iOS等でキーボードが出ている際も、表示領域全体を覆うように調整
+    const containerStyle = viewport ? {
+        top: `${viewport.offsetTop}px`,
+        height: `${viewport.height}px`,
+        minHeight: `${viewport.height}px`, // 確実に合わせる
+    } : {
+        top: 0,
+        bottom: 0,
+    };
+
     // AnimatePresence を Portal の中に配置し、条件分岐を内部で行う
     return createPortal(
         <AnimatePresence>
@@ -210,10 +224,26 @@ export function Keypad({ onConfirm, onCancel, initialValue = '' }: KeypadProps) 
                         className="fixed inset-0 bg-black/50 z-[9998] touch-none pointer-events-auto"
                         onClick={handleCancel}
                         {...blockAllEvents}
+                        // オーバーレイもビューポートに追従させる
+                        style={viewport ? {
+                            position: 'fixed',
+                            left: 0,
+                            width: '100%',
+                            ...containerStyle
+                        } : {}}
                     />
 
                     {/* キーパッドコンテナ */}
-                    <div className="fixed inset-0 z-[9999] flex items-end md:items-center justify-center pointer-events-none">
+                    <div
+                        className="fixed inset-x-0 z-[9999] flex items-end md:items-center justify-center pointer-events-none"
+                        style={viewport ? {
+                            position: 'fixed',
+                            ...containerStyle
+                        } : {
+                            top: 0,
+                            bottom: 0
+                        }}
+                    >
                         <motion.div
                             key="keypad-content"
                             initial={{ y: '100%' }}

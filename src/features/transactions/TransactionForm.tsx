@@ -8,6 +8,7 @@ import { cn, formatCurrency } from '../../lib/utils';
 import { calculateSettlementDate } from '../../lib/settlement';
 import { Button, Keypad, DatePicker } from '../../components/ui';
 import { useAppStore } from '../../stores/appStore';
+import { useVisualViewport } from '../../hooks/useVisualViewport';
 import type { Client, Transaction } from '../../types';
 
 interface TransactionFormProps {
@@ -41,6 +42,19 @@ export function TransactionForm({
     const [memo, setMemo] = useState('');
     const [taxRate] = useState('0.1');
     const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+
+    // Viewport hook for mobile keyboard handling
+    const viewport = useVisualViewport();
+
+    // キーボード表示時の位置調整スタイル
+    // iOSではキーボードがオーバーレイとして表示され、Layout Viewportの高さが変わらないため、
+    // Visual Viewportの情報を使って下端の位置(bottom)を動的に調整する。
+    // Android (Chrome) では window.innerHeight も縮むため bottom: 0 でよいが、
+    // この計算式 (layoutHeight - visualBottom) は両方のケースに対応できる。
+    const contentStyle = viewport ? {
+        bottom: `${Math.max(0, window.innerHeight - (viewport.height + viewport.offsetTop))}px`,
+        maxHeight: `${viewport.height}px`, // 高さが溢れないように制限
+    } : {};
 
     // 編集モード時の初期値セット
     useEffect(() => {
@@ -127,9 +141,15 @@ export function TransactionForm({
                 <Drawer.Portal>
                     <Drawer.Overlay className="fixed inset-0 bg-black/90 z-40" />
                     <Drawer.Content
-                        className="fixed bottom-0 left-0 right-0 z-50 outline-none"
+                        className="fixed left-0 right-0 z-50 outline-none flex flex-col after:hidden"
+                        // bottom-0 クラスは削除し、styleで制御する
+                        // after:hidden はVaulが挿入する背景要素を隠すため（位置ズレ防止）
+                        style={contentStyle}
                     >
-                        <div className="bg-surface-dark rounded-t-3xl max-h-[85dvh] flex flex-col">
+                        <div
+                            className="bg-surface-dark rounded-t-3xl flex flex-col h-full max-h-[85dvh]"
+                        // max-h-[85dvh] はデフォルト。style.maxHeight で上書きされると動的になる
+                        >
                             {/* ハンドル - ここだけがドラッグ可能 */}
                             <div className="flex justify-center py-4 cursor-grab active:cursor-grabbing group">
                                 <Drawer.Handle className="w-12 h-1.5 bg-gray-600 group-hover:bg-gray-500 group-active:bg-primary-500 rounded-full transition-colors shadow-sm" />
