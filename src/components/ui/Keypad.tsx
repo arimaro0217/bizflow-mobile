@@ -221,7 +221,7 @@ export function Keypad({ onConfirm, onCancel, initialValue = '' }: KeypadProps) 
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="fixed inset-0 bg-black/50 z-[9998] touch-none pointer-events-auto"
+                        className="fixed inset-0 bg-black/50 z-[9998] touch-none pointer-events-auto touch-manipulation"
                         onClick={handleCancel}
                         {...blockAllEvents}
                         // オーバーレイもビューポートに追従させる
@@ -343,10 +343,10 @@ function KeypadButton({ value, onPress, isOperator, isActive }: KeypadButtonProp
         <motion.button
             whileTap={{ scale: 0.95 }}
             onClick={onPress}
-            onTouchStart={(e) => e.stopPropagation()}
-            onPointerDown={(e) => e.stopPropagation()}
+            // onTouchStart/onPointerDownでのstopPropagationは削除（クリックイベントが阻害される可能性があるため）
+            // コンテナ側でタッチイベントを制御しているため、ボタン側では伝播させても問題ない（むしろさせるべき）
             className={cn(
-                'h-14 rounded-2xl text-xl font-medium transition-colors pointer-events-auto',
+                'h-14 rounded-2xl text-xl font-medium transition-colors pointer-events-auto touch-manipulation select-none',
                 isOperator
                     ? isActive
                         ? 'bg-primary-600 text-white'
