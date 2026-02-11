@@ -55,41 +55,20 @@ export function useAuth(): UseAuthReturn {
         error: null,
     });
 
-    // 認証状態の監視 & リダイレクト結果の確認
+    // 認証状態の監視
     useEffect(() => {
-        let unsubscribe: (() => void) | undefined;
-
-        const initAuth = async () => {
-            // 1. まずリダイレクト結果を確認（モバイル等はこれでログイン完了する）
-            try {
-                const redirectUser = await getGoogleRedirectResult();
-                if (redirectUser) {
-                    console.log('Redirect sign-in successful:', redirectUser.uid);
-                    // リダイレクト成功時は、リスナー設定前に一旦ステート更新（ちらつき防止）
-                    setState(prev => ({ ...prev, user: redirectUser }));
-                }
-            } catch (error) {
-                console.error('Redirect sign-in error:', error);
-                setState(prev => ({
-                    ...prev,
-                    error: error instanceof Error ? error : new Error('リダイレクトログインに失敗しました')
-                }));
-            } finally {
-                // 2. リダイレクト確認後に常時監視リスナーを設定
-                // これにより「リダイレクト処理中なのに未ログインと判定される」のを防ぐ
-                unsubscribe = observeAuthState((user) => {
-                    console.log('Auth state changed:', user ? user.uid : 'null');
-                    setState(prev => ({
-                        ...prev,
-                        user,
-                        loading: false, // ここで初めてローディング完了とする
-                        error: null,
-                    }));
-                });
-            }
-        };
-
-        initAuth();
+        // 常時監視リスナーを設定
+        // onAuthStateChanged は、初期化完了後（永続化データの読み込み後）に発火するため、
+        // ここで loading: false にすれば適切なタイミングで完了できる。
+        const unsubscribe = observeAuthState((user) => {
+            console.log('Auth state changed:', user ? user.uid : 'null');
+            setState(prev => ({
+                ...prev,
+                user,
+                loading: false,
+                error: null,
+            }));
+        });
 
         // クリーンアップ
         return () => {
@@ -101,17 +80,11 @@ export function useAuth(): UseAuthReturn {
     const handleSignIn = useCallback(async () => {
         setState((prev) => ({ ...prev, loading: true, error: null }));
         try {
-            // モバイル環境（iPhone/Android）かつPWA/Mobileブラウザの場合はリダイレクト
-            const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-
-            if (isMobile) {
-                await signInWithGoogleRedirect();
-                // リダイレクト後はこのページを離れるため、ここでは後続処理は不要
-            } else {
-                await signInWithGoogle();
-                // ユーザー情報は onAuthStateChanged で自動更新される
-            }
+            // モバイル環境でもリダイレクト（signInWithRedirect）ではなくポップアップを使用する
+            // iOS Safari等でのリダイレクトループやセッション切れを防ぐため
+            await signInWithGoogle();
         } catch (error) {
+            console.error('Sign-in error:', error);
             setState((prev) => ({
                 ...prev,
                 loading: false,
