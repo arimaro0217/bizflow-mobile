@@ -370,9 +370,17 @@ export function ClientFormSheet({ open, onOpenChange, onSubmit, initialClient = 
 
                         {/* ヘッダー */}
                         <div className="px-6 pb-4">
-                            <h2 className="text-xl font-semibold text-white">
-                                {isEditing ? '取引先を編集' : '新しい取引先'}
-                            </h2>
+                            <div className="flex items-center justify-between">
+                                <h2 className="text-xl font-semibold text-white">
+                                    {isEditing ? '取引先を編集' : '新しい取引先'}
+                                </h2>
+                                <button
+                                    onClick={() => onOpenChange(false)}
+                                    className="p-2 rounded-full hover:bg-surface-light transition-colors"
+                                >
+                                    <X className="w-6 h-6 text-gray-400" />
+                                </button>
+                            </div>
                         </div>
 
                         {/* フォーム */}
@@ -469,12 +477,20 @@ export function ClientFormSheet({ open, onOpenChange, onSubmit, initialClient = 
                             </div>
 
                             {/* 保存ボタン */}
-                            <div className="pt-2 pb-4">
+                            <div className="pt-2 pb-4 flex gap-3">
+                                <Button
+                                    variant="secondary"
+                                    onClick={() => onOpenChange(false)}
+                                    size="lg"
+                                    className="flex-1 border-white/10 text-gray-300 hover:bg-white/5"
+                                >
+                                    キャンセル
+                                </Button>
                                 <Button
                                     onClick={handleSubmit}
                                     disabled={!name.trim() || isSubmitting}
                                     size="lg"
-                                    className="w-full"
+                                    className="flex-[2]"
                                 >
                                     {isEditing ? '更新' : '保存'}
                                 </Button>
