@@ -11,8 +11,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
     signInWithGoogle,
-    signInWithGoogleRedirect,
-    getGoogleRedirectResult,
     signOut as firebaseSignOut,
     observeAuthState,
     type User,
