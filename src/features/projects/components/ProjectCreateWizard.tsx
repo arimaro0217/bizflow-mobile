@@ -643,9 +643,9 @@ export function ProjectCreateWizard({
                                                         <span className="text-2xl text-gray-400">¥</span>
                                                         <span className={cn(
                                                             "text-4xl font-bold tracking-tight",
-                                                            watchedValues.amount && watchedValues.amount !== '0' ? "text-white" : "text-gray-500"
+                                                            watchedValues.amount ? "text-white" : "text-gray-500"
                                                         )}>
-                                                            {formatCurrency(watchedValues.amount || '0')}
+                                                            {Number(watchedValues.amount || '0').toLocaleString('ja-JP')}
                                                         </span>
                                                     </button>
                                                 </div>

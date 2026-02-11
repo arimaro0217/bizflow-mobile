@@ -184,7 +184,7 @@ export function useProjectWizard(
                     return Boolean(values.startDate && values.endDate);
                 case 3:
                     // 金額チェック + URLの形式用簡易チェック（詳細はzodでやるが、ボタン活性化用）
-                    return Boolean(values.amount && parseFloat(values.amount) > 0);
+                    return Boolean(values.amount && parseFloat(values.amount) >= 0);
                 default:
                     return false;
             }
