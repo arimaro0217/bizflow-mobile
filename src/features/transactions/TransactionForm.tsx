@@ -135,7 +135,7 @@ export function TransactionForm({
             <Drawer.Root
                 open={open}
                 onOpenChange={onOpenChange}
-                dismissible={false}
+                dismissible={true}
                 handleOnly={true}
             >
                 <Drawer.Portal>
