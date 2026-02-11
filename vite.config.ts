@@ -10,7 +10,7 @@ export default defineConfig({
       // フロントエンドで更新を制御するため 'prompt' を使用（ユーザーに更新ボタンを表示）
       injectRegister: 'auto',
       registerType: 'prompt',
-      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'pwa-192x192.png', 'pwa-512x512.png'],
+      includeAssets: ['favicon.png', 'apple-touch-icon.png', 'pwa-192x192.png', 'pwa-512x512.png'],
       manifest: {
         name: 'GANTACT',
         short_name: 'GANTACT',
