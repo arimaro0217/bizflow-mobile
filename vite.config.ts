@@ -67,13 +67,27 @@ export default defineConfig({
         runtimeCaching: [
           // HTML/JS/CSS/Images -> StaleWhileRevalidate（高速表示優先）
           {
-            urlPattern: /^https:\/\/.*\.(js|css|html|png|jpg|jpeg|svg|gif|webp|ico)$/i,
+          // HTML (Always Network First for frequent updates)
+          {
+            urlPattern: ({ request }) => request.mode === 'navigate',
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'html-cache',
+              expiration: {
+                maxEntries: 10,
+                maxAgeSeconds: 60 * 60 * 24, // 1 day
+              },
+            },
+          },
+          // JS/CSS/Images -> StaleWhileRevalidate (Fast load)
+          {
+            urlPattern: /\.(?:js|css|html|png|jpg|jpeg|svg|gif|webp|ico)$/i,
             handler: 'StaleWhileRevalidate',
             options: {
               cacheName: 'static-resources',
               expiration: {
                 maxEntries: 100,
-                maxAgeSeconds: 60 * 60 * 24, // 1 day (faster updates)
+                maxAgeSeconds: 60 * 60 * 24 * 7, // 7 days
               },
             },
           },

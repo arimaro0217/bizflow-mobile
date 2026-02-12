@@ -65,6 +65,8 @@ export function ReloadPrompt() {
 
     const handleRefresh = () => {
         updateServiceWorker(true);
+        // 強制リロードも併用して確実に画面を更新する
+        setTimeout(() => window.location.reload(), 500);
     };
 
     const handleClose = () => {
