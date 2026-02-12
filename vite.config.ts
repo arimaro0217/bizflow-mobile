@@ -66,7 +66,6 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
         runtimeCaching: [
           // HTML/JS/CSS/Images -> StaleWhileRevalidate（高速表示優先）
-          {
           // HTML (Always Network First for frequent updates)
           {
             urlPattern: ({ request }) => request.mode === 'navigate',
