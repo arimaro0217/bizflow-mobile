@@ -21,7 +21,7 @@ import type { Client, ProjectColor, Project } from '../../../types';
 import { DatePicker } from '../../../components/ui/DatePicker';
 import { Keypad } from '../../../components/ui/Keypad';
 import { useAppStore } from '../../../stores/appStore';
-import { formatCurrency } from '../../../lib/utils';
+
 
 // =============================================================================
 // Props
