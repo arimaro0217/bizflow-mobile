@@ -7,9 +7,9 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      // フロントエンドで更新を制御するため 'prompt' を使用（ユーザーに更新ボタンを表示）
+      // 自動更新モード: 新しいSWが検出されたら即座に適用（ユーザー操作不要）
       injectRegister: 'auto',
-      registerType: 'prompt',
+      registerType: 'autoUpdate',
       includeAssets: ['favicon.png', 'apple-touch-icon.png', 'pwa-192x192.png', 'pwa-512x512.png'],
       manifest: {
         name: 'GANTACT',

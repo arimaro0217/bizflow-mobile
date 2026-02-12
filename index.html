@@ -31,7 +31,44 @@
 <body>
   <div id="root"></div>
   <script>
-    console.log('Main Page Loaded: v1.1.0-fix ' + new Date().toISOString());
+    // === PWA Cache Buster v1.1.1 ===
+    // 古いService Workerが居座っている場合に強制的にクリアする
+    (function () {
+      var APP_VERSION = '1.1.1';
+      var STORED_VERSION = localStorage.getItem('app_version');
+
+      if (STORED_VERSION !== APP_VERSION) {
+        console.log('[CacheBuster] Version mismatch: stored=' + STORED_VERSION + ' current=' + APP_VERSION);
+        localStorage.setItem('app_version', APP_VERSION);
+
+        // 全てのService Workerを解除
+        if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.getRegistrations().then(function (registrations) {
+            var promises = registrations.map(function (reg) {
+              console.log('[CacheBuster] Unregistering SW:', reg.scope);
+              return reg.unregister();
+            });
+            return Promise.all(promises);
+          }).then(function () {
+            // 全てのCacheStorageをクリア
+            if ('caches' in window) {
+              return caches.keys().then(function (names) {
+                return Promise.all(names.map(function (name) {
+                  console.log('[CacheBuster] Deleting cache:', name);
+                  return caches.delete(name);
+                }));
+              });
+            }
+          }).then(function () {
+            // 古いバージョンからの遷移時のみリロード（初回訪問は除く）
+            if (STORED_VERSION !== null) {
+              console.log('[CacheBuster] Reloading for fresh content...');
+              window.location.reload();
+            }
+          });
+        }
+      }
+    })();
   </script>
   <script type="module" src="/src/main.tsx"></script>
 </body>
