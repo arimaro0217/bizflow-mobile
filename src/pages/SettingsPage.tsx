@@ -136,7 +136,7 @@ export default function SettingsPage({ onBack, onNavigate }: SettingsPageProps) 
                 </div>
 
                 <div className="mt-8 text-center">
-                    <p className="text-xs text-gray-600">GANTACT v1.1.0</p>
+                    <p className="text-xs text-gray-600">GANTACT v1.1.1</p>
                 </div>
             </div>
 

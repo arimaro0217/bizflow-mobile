@@ -39,22 +39,6 @@ export default defineConfig({
             purpose: 'any maskable',
           },
         ],
-        screenshots: [
-          {
-            src: 'screenshot-mobile.png',
-            sizes: '1080x1920',
-            type: 'image/png',
-            form_factor: 'narrow',
-            label: 'GANTACT - ホーム画面',
-          },
-          {
-            src: 'screenshot-wide.png',
-            sizes: '1920x1080',
-            type: 'image/png',
-            form_factor: 'wide',
-            label: 'GANTACT - デスクトップ表示',
-          },
-        ],
       },
       workbox: {
         // 古いキャッシュを自動削除

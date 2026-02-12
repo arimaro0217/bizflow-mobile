@@ -116,7 +116,7 @@ export function LoginPage() {
                     </button>
 
                     <p className="text-center text-gray-500 text-[10px] mt-4 opacity-30">
-                        v1.1.0 - Auth & Input Fixes
+                        v1.1.1 - Asset & PWA Fixes
                     </p>
                 </div>
             </motion.div>
