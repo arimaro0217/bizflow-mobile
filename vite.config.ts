@@ -7,9 +7,9 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      // 自動更新モード: 新しいSWが検出されたら即座に適用（ユーザー操作不要）
+      // 手動更新モード: 新しいSWが検出されたらユーザーにプロンプトを表示
       injectRegister: 'auto',
-      registerType: 'autoUpdate',
+      registerType: 'prompt',
       includeAssets: ['favicon.png', 'apple-touch-icon.png', 'pwa-192x192.png', 'pwa-512x512.png'],
       manifest: {
         name: 'GANTACT',
@@ -43,8 +43,8 @@ export default defineConfig({
       workbox: {
         // 古いキャッシュを自動削除
         cleanupOutdatedCaches: true,
-        // 即座にService Workerを有効化（フロントエンドでリロード制御）
-        skipWaiting: true,
+        // 手動更新を制御するため skipWaiting は false (デフォルト) に
+        skipWaiting: false,
         clientsClaim: true,
         // 静的アセットのプリキャッシュ
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],

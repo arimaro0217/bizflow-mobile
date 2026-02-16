@@ -63,10 +63,14 @@ export function ReloadPrompt() {
         };
     }, []);
 
-    const handleRefresh = () => {
-        updateServiceWorker(true);
-        // 強制リロードも併用して確実に画面を更新する
-        setTimeout(() => window.location.reload(), 500);
+    const handleRefresh = async () => {
+        console.log('[PWA] Updating service worker...');
+        await updateServiceWorker(true);
+        // 少し待機してからリロード（Service Workerの有効化を待つ）
+        setTimeout(() => {
+            console.log('[PWA] Reloading page...');
+            window.location.reload();
+        }, 100);
     };
 
     const handleClose = () => {
