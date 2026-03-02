@@ -1,15 +1,26 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Drawer } from 'vaul';
-import { format } from 'date-fns';
-import { ja } from 'date-fns/locale';
-import { ArrowDownCircle, ArrowUpCircle, Calendar, Building2 } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { ArrowDownCircle, ArrowUpCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { cn, formatCurrency } from '../../lib/utils';
+import { cn } from '../../lib/utils';
 import { calculateSettlementDate } from '../../lib/settlement';
 import { Button, Keypad, DatePicker } from '../../components/ui';
+import { FormDrawer } from '../../components/ui/FormDrawer';
+import { FormAmountInput, FormDatePicker, FormSelectButton, FormTextArea } from '../../components/ui/FormInputs';
 import { useAppStore } from '../../stores/appStore';
-import { useVisualViewport } from '../../hooks/useVisualViewport';
 import type { Client, Transaction } from '../../types';
+
+const transactionSchema = z.object({
+    type: z.enum(['income', 'expense']),
+    amount: z.string().min(1, '金額を入力してください').refine(val => parseFloat(val) >= 0, '金額が正しくありません'),
+    transactionDate: z.date(),
+    memo: z.string().optional(),
+    clientId: z.string().optional(),
+});
+
+type TransactionFormData = z.infer<typeof transactionSchema>;
 
 interface TransactionFormProps {
     open: boolean;
@@ -35,71 +46,66 @@ export function TransactionForm({
     onDelete,
     onCancel,
 }: TransactionFormProps) {
-    const { openKeypad, isKeypadOpen } = useAppStore();
-    const [type, setType] = useState<'income' | 'expense'>('income');
-    const [amount, setAmount] = useState('0');
-    const [transactionDate, setTransactionDate] = useState(initialDate);
-    const [memo, setMemo] = useState('');
-    const [taxRate] = useState('0.1');
+    const { openKeypad } = useAppStore();
     const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
 
-    // Viewport hook for mobile keyboard handling
-    const viewport = useVisualViewport();
+    const {
+        register,
+        handleSubmit,
+        setValue,
+        watch,
+        reset,
+        formState: { errors, isSubmitting }
+    } = useForm<TransactionFormData>({
+        resolver: zodResolver(transactionSchema),
+        defaultValues: {
+            type: 'income',
+            amount: '0',
+            transactionDate: initialDate,
+            memo: '',
+            clientId: '',
+        }
+    });
 
-    // キーボード表示時の位置調整スタイル
-    // iOSではキーボードがオーバーレイとして表示され、Layout Viewportの高さが変わらないため、
-    // Visual Viewportの情報を使って下端の位置(bottom)を動的に調整する。
-    // Android (Chrome) では window.innerHeight も縮むため bottom: 0 でよいが、
-    // この計算式 (layoutHeight - visualBottom) は両方のケースに対応できる。
-    // キーパッド表示中は、キーパッド自身がビューポートを調整するため、
-    // 背景のドロワーは位置調整をスキップ（bottom: 0を維持）させる。
-    // これにより、キーパッドのオーバーレイによるビューポート変化でフォームが動くのを防ぐ。
-    const contentStyle = (viewport && !isKeypadOpen) ? {
-        bottom: `${Math.max(0, window.innerHeight - (viewport.height + viewport.offsetTop))}px`,
-        maxHeight: `${viewport.height}px`, // 高さが溢れないように制限
-    } : {
-        bottom: '0px'
-    };
+    const watchedValues = watch();
 
     // 編集モード時の初期値セット
     useEffect(() => {
         if (open) {
             if (initialTransaction) {
-                setType(initialTransaction.type);
-                setAmount(initialTransaction.amount);
-                setTransactionDate(initialTransaction.transactionDate || new Date());
-                setMemo(initialTransaction.memo || '');
+                reset({
+                    type: initialTransaction.type,
+                    amount: initialTransaction.amount,
+                    transactionDate: initialTransaction.transactionDate || new Date(),
+                    memo: initialTransaction.memo || '',
+                    clientId: initialTransaction.clientId || '',
+                });
             } else {
-                // 新規作成時はデフォルト値を使用
-                setType('income');
-                setAmount('0');
-                setTransactionDate(initialDate);
-                setMemo('');
+                reset({
+                    type: 'income',
+                    amount: '0',
+                    transactionDate: initialDate,
+                    memo: '',
+                    clientId: selectedClient?.id || '',
+                });
             }
         }
-    }, [open, initialTransaction, initialDate]);
+    }, [open, initialTransaction, initialDate, reset, selectedClient]);
 
-    const handleAmountConfirm = (value: string) => {
-        setAmount(value);
-    };
+    // 取引先が選択されたらフォームに反映
+    useEffect(() => {
+        if (selectedClient) {
+            setValue('clientId', selectedClient.id);
+        }
+    }, [selectedClient, setValue]);
 
-    // スクロールリセット処理（iOSでのキーボード表示後のズレ対策）
-    const handleInputBlur = useCallback(() => {
-        window.scrollTo(0, 0);
-    }, []);
+    const handleFormSubmit = (data: TransactionFormData) => {
+        if (data.amount === '0' || !data.amount) return;
 
-    const handleSubmit = () => {
-        if (amount === '0' || !amount) return;
-
-        // 時間を正午(12:00)に設定して、タイムゾーンによる日付ズレ(00:00 -> 前日23:00等)を防止
-        const dateWithNoon = new Date(transactionDate);
+        const dateWithNoon = new Date(data.transactionDate);
         dateWithNoon.setHours(12, 0, 0, 0);
 
-        // 入金予定日を計算
         let settlementDate = dateWithNoon;
-
-        // 編集モードかつ決済日が既にある場合は維持するか、再計算するか？
-        // ここではシンプルに、クライアントが選択されていれば再計算、そうでなければ既存維持または発生日
         if (selectedClient) {
             settlementDate = calculateSettlementDate(
                 dateWithNoon,
@@ -108,206 +114,124 @@ export function TransactionForm({
                 selectedClient.paymentDay
             );
         } else if (initialTransaction?.settlementDate) {
-            // 既存の決済日がある場合も、時間を12:00に正規化しておくのが安全
-            const existingSettlement = new Date(initialTransaction.settlementDate);
-            existingSettlement.setHours(12, 0, 0, 0);
-            settlementDate = existingSettlement;
+            settlementDate = new Date(initialTransaction.settlementDate);
+            settlementDate.setHours(12, 0, 0, 0);
         }
 
         onSubmit({
-            type,
-            amount,
-            taxRate,
+            type: data.type,
+            amount: data.amount,
+            taxRate: '0.1',
             transactionDate: dateWithNoon,
             settlementDate,
             isSettled: initialTransaction ? initialTransaction.isSettled : false,
-            clientId: selectedClient?.id,
-            memo: memo.trim() || undefined,
+            clientId: data.clientId || undefined,
+            memo: data.memo?.trim() || undefined,
         });
-
-        // リセットは親コンポーネントの開閉制御に任せるが、念のため
-        if (!initialTransaction) {
-            setType('income');
-            setAmount('0');
-            setMemo('');
-        }
-
-        onOpenChange(false);
+        onOpenChange(false); // Close drawer after submission
     };
+
+    const footer = (
+        <div className="flex gap-3">
+            {initialTransaction && onDelete && (
+                <Button
+                    variant="danger"
+                    className="flex-1"
+                    onClick={() => {
+                        onDelete(initialTransaction);
+                        onOpenChange(false);
+                    }}
+                >
+                    削除
+                </Button>
+            )}
+            <Button
+                className="flex-[2] bg-primary-600 hover:bg-primary-500 text-white"
+                onClick={handleSubmit(handleFormSubmit)}
+                disabled={isSubmitting || watchedValues.amount === '0'}
+            >
+                {initialTransaction ? '更新する' : '登録する'}
+            </Button>
+        </div>
+    );
 
     return (
         <>
-            <Drawer.Root
+            <FormDrawer
                 open={open}
                 onOpenChange={onOpenChange}
-                dismissible={true}
-                handleOnly={true}
+                title={initialTransaction ? '取引を編集' : '取引を登録'}
+                footer={footer}
             >
-                <Drawer.Portal>
-                    <Drawer.Overlay className="fixed inset-0 bg-black/90 z-40" />
-                    <Drawer.Content
-                        className="fixed left-0 right-0 z-50 outline-none flex flex-col after:hidden"
-                        // bottom-0 クラスは削除し、styleで制御する
-                        // after:hidden はVaulが挿入する背景要素を隠すため（位置ズレ防止）
-                        style={contentStyle}
+                {/* 収入/支出切替 */}
+                <div className="grid grid-cols-2 gap-2">
+                    <motion.button
+                        whileTap={{ scale: 0.98 }}
+                        type="button"
+                        onClick={() => setValue('type', 'income')}
+                        className={cn(
+                            'flex items-center justify-center gap-2 py-4 rounded-xl font-medium transition-colors',
+                            watchedValues.type === 'income'
+                                ? 'bg-income text-white'
+                                : 'bg-surface-light text-gray-400'
+                        )}
                     >
-                        <div
-                            className="bg-surface-dark rounded-t-3xl flex flex-col h-full max-h-[85dvh]"
-                        // max-h-[85dvh] はデフォルト。style.maxHeight で上書きされると動的になる
-                        >
-                            {/* ハンドル - ここだけがドラッグ可能 */}
-                            <div className="flex justify-center py-4 cursor-grab active:cursor-grabbing group">
-                                <Drawer.Handle className="w-12 h-1.5 bg-gray-600 group-hover:bg-gray-500 group-active:bg-primary-500 rounded-full transition-colors shadow-sm" />
-                            </div>
+                        <ArrowDownCircle className="w-5 h-5" />
+                        収入
+                    </motion.button>
+                    <motion.button
+                        whileTap={{ scale: 0.98 }}
+                        type="button"
+                        onClick={() => setValue('type', 'expense')}
+                        className={cn(
+                            'flex items-center justify-center gap-2 py-4 rounded-xl font-medium transition-colors',
+                            watchedValues.type === 'expense'
+                                ? 'bg-expense text-white'
+                                : 'bg-surface-light text-gray-400'
+                        )}
+                    >
+                        <ArrowUpCircle className="w-5 h-5" />
+                        支出
+                    </motion.button>
+                </div>
 
-                            {/* ヘッダー */}
-                            <div className="px-6 pb-4">
-                                <h2 className="text-xl font-semibold text-white">取引を登録</h2>
-                            </div>
+                {/* 金額入力 */}
+                <FormAmountInput
+                    value={watchedValues.amount}
+                    type={watchedValues.type}
+                    onClick={openKeypad}
+                    error={errors.amount?.message}
+                />
 
-                            {/* コンテンツ */}
-                            <div className="flex-1 overflow-y-auto px-6 pb-safe space-y-6 overscroll-y-contain touch-pan-y">
-                                {/* 収入/支出切替 */}
-                                <div className="grid grid-cols-2 gap-2">
-                                    <motion.button
-                                        whileTap={{ scale: 0.98 }}
-                                        onClick={() => setType('income')}
-                                        className={cn(
-                                            'flex items-center justify-center gap-2 py-4 rounded-xl font-medium transition-colors',
-                                            type === 'income'
-                                                ? 'bg-income text-white'
-                                                : 'bg-surface-light text-gray-400'
-                                        )}
-                                    >
-                                        <ArrowDownCircle className="w-5 h-5" />
-                                        収入
-                                    </motion.button>
-                                    <motion.button
-                                        whileTap={{ scale: 0.98 }}
-                                        onClick={() => setType('expense')}
-                                        className={cn(
-                                            'flex items-center justify-center gap-2 py-4 rounded-xl font-medium transition-colors',
-                                            type === 'expense'
-                                                ? 'bg-expense text-white'
-                                                : 'bg-surface-light text-gray-400'
-                                        )}
-                                    >
-                                        <ArrowUpCircle className="w-5 h-5" />
-                                        支出
-                                    </motion.button>
-                                </div>
+                {/* 日付 */}
+                <FormDatePicker
+                    date={watchedValues.transactionDate}
+                    onClick={() => setIsDatePickerOpen(true)}
+                    error={errors.transactionDate?.message}
+                />
 
-                                {/* 金額入力 */}
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-400 mb-2">
-                                        金額
-                                    </label>
-                                    <button
-                                        onClick={openKeypad}
-                                        className="w-full p-4 bg-surface rounded-xl text-right"
-                                    >
-                                        <span className={cn(
-                                            'text-3xl font-semibold tabular-nums',
-                                            amount !== '0'
-                                                ? type === 'income' ? 'text-income' : 'text-expense'
-                                                : 'text-gray-500'
-                                        )}>
-                                            {formatCurrency(amount)}
-                                        </span>
-                                    </button>
-                                </div>
+                {/* 取引先 */}
+                <FormSelectButton
+                    label="取引先（任意）"
+                    placeholder="取引先を選択..."
+                    value={watchedValues.clientId}
+                    displayValue={selectedClient?.name}
+                    onClick={onOpenClientSheet}
+                />
 
-                                {/* 日付 */}
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-400 mb-2">
-                                        日付
-                                    </label>
-                                    <button
-                                        onClick={() => setIsDatePickerOpen(true)}
-                                        className="w-full flex items-center gap-3 p-4 bg-surface rounded-xl text-left hover:bg-surface-light transition-colors"
-                                    >
-                                        <Calendar className="w-5 h-5 text-gray-400" />
-                                        <span className="text-white">
-                                            {format(transactionDate, 'yyyy年M月d日 (E)', { locale: ja })}
-                                        </span>
-                                    </button>
-                                </div>
-
-                                {/* 取引先 */}
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-400 mb-2">
-                                        取引先（任意）
-                                    </label>
-                                    <button
-                                        onClick={onOpenClientSheet}
-                                        className="w-full flex items-center gap-3 p-4 bg-surface rounded-xl text-left"
-                                    >
-                                        <Building2 className="w-5 h-5 text-gray-400" />
-                                        <span className={selectedClient ? 'text-white' : 'text-gray-500'}>
-                                            {selectedClient?.name || '取引先を選択...'}
-                                        </span>
-                                    </button>
-                                </div>
-
-                                {/* メモ */}
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-400 mb-2">
-                                        メモ（任意）
-                                    </label>
-                                    <input
-                                        type="text"
-                                        value={memo}
-                                        onChange={(e) => setMemo(e.target.value)}
-                                        onBlur={handleInputBlur}
-                                        placeholder="メモを入力..."
-                                        className="w-full px-4 py-3 bg-surface rounded-xl text-white placeholder-gray-500 outline-none focus:ring-2 focus:ring-primary-500"
-                                    />
-                                </div>
-
-                                {/* 登録ボタン */}
-                                <div className="pt-2 pb-4 space-y-3">
-                                    <div className="flex gap-3">
-                                        <Button
-                                            variant="secondary"
-                                            onClick={onCancel}
-                                            size="lg"
-                                            className="flex-1 border-white/10 text-gray-300 hover:bg-white/5"
-                                        >
-                                            キャンセル
-                                        </Button>
-                                        <Button
-                                            onClick={handleSubmit}
-                                            disabled={amount === '0'}
-                                            size="lg"
-                                            className="flex-[2]"
-                                        >
-                                            {initialTransaction ? '更新する' : '登録する'}
-                                        </Button>
-                                    </div>
-
-                                    {initialTransaction && (
-                                        <button
-                                            onClick={() => {
-                                                onDelete?.(initialTransaction);
-                                                onOpenChange(false);
-                                            }}
-                                            className="w-full py-4 text-red-400 font-medium hover:bg-white/5 rounded-xl transition-colors"
-                                        >
-                                            この取引を削除
-                                        </button>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-                    </Drawer.Content>
-                </Drawer.Portal>
-            </Drawer.Root>
+                {/* メモ */}
+                <FormTextArea
+                    label="メモ"
+                    placeholder="備考などを入力..."
+                    {...register('memo')}
+                />
+            </FormDrawer>
 
             {/* キーパッド */}
             {open && (
                 <Keypad
-                    onConfirm={handleAmountConfirm}
-                    initialValue={amount}
+                    onConfirm={(val) => setValue('amount', val, { shouldValidate: true })}
+                    initialValue={watchedValues.amount}
                 />
             )}
 
@@ -315,8 +239,11 @@ export function TransactionForm({
             <DatePicker
                 open={isDatePickerOpen}
                 onOpenChange={setIsDatePickerOpen}
-                value={transactionDate}
-                onConfirm={setTransactionDate}
+                value={watchedValues.transactionDate}
+                onConfirm={(date) => {
+                    setValue('transactionDate', date, { shouldValidate: true });
+                    setIsDatePickerOpen(false);
+                }}
             />
         </>
     );

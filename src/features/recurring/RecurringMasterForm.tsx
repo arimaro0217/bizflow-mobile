@@ -1,334 +1,157 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Drawer } from 'vaul';
-import { addMonths } from 'date-fns';
-import {
-    ArrowDownCircle,
-    ArrowUpCircle,
-    Calendar,
-    Building2,
-    Repeat,
-    CalendarDays,
-} from 'lucide-react';
+```
+import { useEffect, useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { ArrowDownCircle, ArrowUpCircle, Info } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { cn, formatCurrency } from '../../lib/utils';
-import { Button, Keypad } from '../../components/ui';
+import { cn } from '../../lib/utils';
+import { Button, Keypad, DatePicker } from '../../components/ui';
+import { FormDrawer } from '../../components/ui/FormDrawer';
+import { FormAmountInput, FormDatePicker, FormSelectButton, FormTextInput, FormField } from '../../components/ui/FormInputs';
 import { useAppStore } from '../../stores/appStore';
-import { useVisualViewport } from '../../hooks/useVisualViewport';
 import type { Client, RecurringMaster } from '../../types';
+
+const recurringSchema = z.object({
+    type: z.enum(['income', 'expense']),
+    amount: z.string().min(1, '金額を入力してください').refine(val => parseFloat(val) > 0, '金額が正しくありません'),
+    title: z.string().min(1, '名称を入力してください'),
+    clientId: z.string().optional(),
+    startDate: z.date(),
+    day: z.number().min(1).max(31),
+    hasEndDate: z.boolean(),
+    endMonths: z.number().min(1).max(60).optional(),
+});
+
+type RecurringFormData = z.infer<typeof recurringSchema>;
 
 interface RecurringMasterFormProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
-    onSubmit: (data: RecurringMasterFormData) => void;
-    clients?: Client[];
-    onOpenClientSheet?: () => void;
+    onSubmit: (data: Omit<RecurringMaster, 'id' | 'uid' | 'createdAt' | 'updatedAt'>) => void;
+    clients: Client[];
+    onOpenClientSheet: () => void;
     selectedClient?: Client | null;
     initialMaster?: RecurringMaster | null;
+    onDelete?: (master: RecurringMaster) => void;
 }
-
-export interface RecurringMasterFormData {
-    title: string;
-    baseAmount: string;
-    type: 'income' | 'expense';
-    clientId?: string;
-    memo?: string;
-    frequency: 'monthly' | 'yearly';
-    dayOfPeriod: number;
-    monthOfYear?: number;
-    startDate: Date;
-    endDate?: Date | null;
-}
-
-const DAYS = Array.from({ length: 31 }, (_, i) => i + 1);
-const MONTHS = [
-    '1月', '2月', '3月', '4月', '5月', '6月',
-    '7月', '8月', '9月', '10月', '11月', '12月'
-];
 
 export function RecurringMasterForm({
     open,
     onOpenChange,
     onSubmit,
+    clients,
     onOpenClientSheet,
     selectedClient = null,
     initialMaster = null,
+    onDelete,
 }: RecurringMasterFormProps) {
-    const { openKeypad, isKeypadOpen } = useAppStore();
+    const { openKeypad } = useAppStore();
+    const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
 
-    const [title, setTitle] = useState('');
-    const [type, setType] = useState<'income' | 'expense'>('expense');
-    const [amount, setAmount] = useState('0');
-    const [frequency, setFrequency] = useState<'monthly' | 'yearly'>('monthly');
-    const [dayOfPeriod, setDayOfPeriod] = useState(25);
-    const [monthOfYear, setMonthOfYear] = useState(1);
-    const [startDate] = useState(new Date());
-    const [hasEndDate, setHasEndDate] = useState(false);
-    const [endMonths, setEndMonths] = useState(12);
+    const {
+        register,
+        handleSubmit,
+        setValue,
+        watch,
+        reset,
+        formState: { errors, isSubmitting }
+    } = useForm<RecurringFormData>({
+        resolver: zodResolver(recurringSchema),
+        defaultValues: {
+            type: 'income',
+            amount: '0',
+            title: '',
+            clientId: '',
+            startDate: new Date(),
+            day: new Date().getDate(),
+            hasEndDate: false,
+            endMonths: 12,
+        }
+    });
 
-    const viewport = useVisualViewport();
-    const contentStyle = (viewport && !isKeypadOpen) ? {
-        bottom: `${Math.max(0, window.innerHeight - (viewport.height + viewport.offsetTop))}px`,
-        maxHeight: `${viewport.height}px`,
-    } : {
-        bottom: '0px'
-    };
+    const watchedValues = watch();
 
     // 編集モード時の初期値セット
     useEffect(() => {
         if (open) {
             if (initialMaster) {
-                setTitle(initialMaster.title);
-                setType(initialMaster.type);
-                setAmount(initialMaster.baseAmount);
-                setFrequency(initialMaster.frequency);
-                setDayOfPeriod(initialMaster.dayOfPeriod);
-                setMonthOfYear(initialMaster.monthOfYear || 1);
-                setHasEndDate(!!initialMaster.endDate);
+                reset({
+                    type: initialMaster.type,
+                    amount: initialMaster.amount,
+                    title: initialMaster.title,
+                    clientId: initialMaster.clientId || '',
+                    startDate: initialMaster.startDate || new Date(),
+                    day: initialMaster.day,
+                    hasEndDate: !!initialMaster.endMonths,
+                    endMonths: initialMaster.endMonths || 12,
+                });
             } else {
-                setTitle('');
-                setType('expense');
-                setAmount('0');
-                setFrequency('monthly');
-                setDayOfPeriod(25);
-                setMonthOfYear(1);
-                setHasEndDate(false);
-                setEndMonths(12);
+                reset({
+                    type: 'income',
+                    amount: '0',
+                    title: '',
+                    clientId: selectedClient?.id || '',
+                    startDate: new Date(),
+                    day: new Date().getDate(),
+                    hasEndDate: false,
+                    endMonths: 12,
+                });
             }
         }
-    }, [open, initialMaster]);
+    }, [open, initialMaster, reset, selectedClient]);
 
-    const handleAmountConfirm = (value: string) => {
-        setAmount(value);
-    };
+    // 取引先が選択されたらフォームに反映
+    useEffect(() => {
+        if (selectedClient) {
+            setValue('clientId', selectedClient.id);
+        }
+    }, [selectedClient, setValue]);
 
-    // スクロールリセット処理（iOSでのキーボード表示後のズレ対策）
-    const handleInputBlur = useCallback(() => {
-        window.scrollTo(0, 0);
-    }, []);
-
-    const handleSubmit = () => {
-        if (amount === '0' || !amount || !title.trim()) return;
-
-        const data: RecurringMasterFormData = {
-            title: title.trim(),
-            baseAmount: amount,
-            type,
-            clientId: selectedClient?.id,
-            frequency,
-            dayOfPeriod,
-            ...(frequency === 'yearly' && { monthOfYear }),
-            startDate,
-            endDate: hasEndDate ? addMonths(startDate, endMonths) : null,
-        };
-
-        onSubmit(data);
-
-        // リセット
-        setTitle('');
-        setType('expense');
-        setAmount('0');
-        setFrequency('monthly');
-        setDayOfPeriod(25);
-        setHasEndDate(false);
+    const handleFormSubmit = (data: RecurringFormData) => {
+        onSubmit({
+            type: data.type,
+            amount: data.amount,
+            title: data.title,
+            clientId: data.clientId || undefined,
+            startDate: data.startDate,
+            day: data.day,
+            interval: 'monthly',
+            endMonths: data.hasEndDate ? data.endMonths : undefined,
+            isActive: true,
+        });
         onOpenChange(false);
     };
 
-    const isEditing = !!initialMaster;
+    const footer = (
+        <div className="flex gap-3">
+            {initialMaster && onDelete && (
+                <Button
+                    variant="danger"
+                    className="flex-1"
+                    onClick={() => {
+                        onDelete(initialMaster);
+                        onOpenChange(false);
+                    }}
+                >
+                    削除
+                </Button>
+            )}
+            <Button
+                className="flex-[2] bg-primary-600 hover:bg-primary-500 text-white"
+                onClick={handleSubmit(handleFormSubmit)}
+                disabled={isSubmitting || watchedValues.amount === '0'}
+            >
+                {initialMaster ? '更新する' : '登録する'}
+            </Button>
+        </div>
+    );
 
     return (
         <>
-            <Drawer.Root
+            <FormDrawer
                 open={open}
                 onOpenChange={onOpenChange}
-                dismissible={!isKeypadOpen}
-                handleOnly={true}
-            >
-                <Drawer.Portal>
-                    <Drawer.Overlay className="fixed inset-0 bg-black/50 z-40" />
-                    <Drawer.Content
-                        className="fixed left-0 right-0 z-50 outline-none flex flex-col after:hidden"
-                        style={contentStyle}
-                        onClick={(e) => e.stopPropagation()}
-                        onPointerDown={(e) => e.stopPropagation()}
-                        onTouchStart={(e) => e.stopPropagation()}
-                    >
-                        <div className="bg-surface-dark rounded-t-3xl max-h-[90vh] flex flex-col">
-                            {/* ハンドル - ここだけがドラッグ可能 */}
-                            <div className="flex justify-center py-4 cursor-grab active:cursor-grabbing group">
-                                <Drawer.Handle className="w-12 h-1.5 bg-gray-600 group-hover:bg-gray-500 group-active:bg-primary-500 rounded-full transition-colors shadow-sm" />
-                            </div>
-
-                            {/* ヘッダー */}
-                            <div className="px-6 pb-4">
-                                <h2 className="text-xl font-semibold text-white">
-                                    {isEditing ? '定期取引を編集' : '定期取引を登録'}
-                                </h2>
-                            </div>
-
-                            {/* コンテンツ */}
-                            <div className="flex-1 overflow-y-auto px-6 pb-safe space-y-5">
-                                {/* タイトル */}
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-400 mb-2">
-                                        タイトル
-                                    </label>
-                                    <input
-                                        type="text"
-                                        value={title}
-                                        onChange={(e) => setTitle(e.target.value)}
-                                        onBlur={handleInputBlur}
-                                        placeholder="例: 家賃、サーバー代"
-                                        className="w-full px-4 py-3 bg-surface rounded-xl text-white placeholder-gray-500 outline-none focus:ring-2 focus:ring-primary-500"
-                                    />
-                                </div>
-
-                                {/* 収入/支出切替 */}
-                                <div className="grid grid-cols-2 gap-2">
-                                    <motion.button
-                                        whileTap={{ scale: 0.98 }}
-                                        onClick={() => setType('income')}
-                                        className={cn(
-                                            'flex items-center justify-center gap-2 py-3 rounded-xl font-medium transition-colors',
-                                            type === 'income'
-                                                ? 'bg-income text-white'
-                                                : 'bg-surface-light text-gray-400'
-                                        )}
-                                    >
-                                        <ArrowDownCircle className="w-5 h-5" />
-                                        収入
-                                    </motion.button>
-                                    <motion.button
-                                        whileTap={{ scale: 0.98 }}
-                                        onClick={() => setType('expense')}
-                                        className={cn(
-                                            'flex items-center justify-center gap-2 py-3 rounded-xl font-medium transition-colors',
-                                            type === 'expense'
-                                                ? 'bg-expense text-white'
-                                                : 'bg-surface-light text-gray-400'
-                                        )}
-                                    >
-                                        <ArrowUpCircle className="w-5 h-5" />
-                                        支出
-                                    </motion.button>
-                                </div>
-
-                                {/* 金額入力 */}
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-400 mb-2">
-                                        金額
-                                    </label>
-                                    <button
-                                        onClick={openKeypad}
-                                        className="w-full p-4 bg-surface rounded-xl text-right"
-                                    >
-                                        <span className={cn(
-                                            'text-3xl font-semibold tabular-nums',
-                                            amount !== '0'
-                                                ? type === 'income' ? 'text-income' : 'text-expense'
-                                                : 'text-gray-500'
-                                        )}>
-                                            {formatCurrency(amount)}
-                                        </span>
-                                    </button>
-                                </div>
-
-                                {/* 頻度 */}
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-400 mb-2">
-                                        <Repeat className="w-4 h-4 inline mr-1" />
-                                        繰り返し
-                                    </label>
-                                    <div className="grid grid-cols-2 gap-2">
-                                        <button
-                                            onClick={() => setFrequency('monthly')}
-                                            className={cn(
-                                                'py-3 rounded-xl font-medium transition-colors',
-                                                frequency === 'monthly'
-                                                    ? 'bg-primary-500 text-white'
-                                                    : 'bg-surface-light text-gray-400'
-                                            )}
-                                        >
-                                            毎月
-                                        </button>
-                                        <button
-                                            onClick={() => setFrequency('yearly')}
-                                            className={cn(
-                                                'py-3 rounded-xl font-medium transition-colors',
-                                                frequency === 'yearly'
-                                                    ? 'bg-primary-500 text-white'
-                                                    : 'bg-surface-light text-gray-400'
-                                            )}
-                                        >
-                                            毎年
-                                        </button>
-                                    </div>
-                                </div>
-
-                                {/* 日付指定 */}
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-400 mb-2">
-                                        <CalendarDays className="w-4 h-4 inline mr-1" />
-                                        {frequency === 'monthly' ? '毎月' : '毎年'}の発生日
-                                    </label>
-
-                                    <div className="flex gap-2">
-                                        {/* 月選択（yearlyの場合のみ） */}
-                                        {frequency === 'yearly' && (
-                                            <select
-                                                value={monthOfYear}
-                                                onChange={(e) => setMonthOfYear(Number(e.target.value))}
-                                                className="flex-1 px-4 py-3 bg-surface rounded-xl text-white outline-none focus:ring-2 focus:ring-primary-500"
-                                            >
-                                                {MONTHS.map((month, i) => (
-                                                    <option key={i} value={i + 1}>{month}</option>
-                                                ))}
-                                            </select>
-                                        )}
-
-                                        {/* 日選択 */}
-                                        <select
-                                            value={dayOfPeriod}
-                                            onChange={(e) => setDayOfPeriod(Number(e.target.value))}
-                                            className="flex-1 px-4 py-3 bg-surface rounded-xl text-white outline-none focus:ring-2 focus:ring-primary-500"
-                                        >
-                                            {DAYS.map((day) => (
-                                                <option key={day} value={day}>
-                                                    {day === 31 ? '月末' : `${day}日`}
-                                                </option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                </div>
-
-                                {/* 期間設定 */}
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-400 mb-2">
-                                        <Calendar className="w-4 h-4 inline mr-1" />
-                                        期間
-                                    </label>
-                                    <div className="space-y-3">
-                                        <button
-                                            onClick={() => setHasEndDate(false)}
-                                            className={cn(
-                                                'w-full py-3 px-4 rounded-xl text-left transition-colors',
-                                                !hasEndDate
-                                                    ? 'bg-primary-500 text-white'
-                                                    : 'bg-surface-light text-gray-400'
-                                            )}
-                                        >
-                                            無期限
-                                        </button>
-                                        <button
-                                            onClick={() => setHasEndDate(true)}
-                                            className={cn(
-                                                'w-full py-3 px-4 rounded-xl text-left transition-colors',
-                                                hasEndDate
-                                                    ? 'bg-primary-500 text-white'
-                                                    : 'bg-surface-light text-gray-400'
-                                            )}
-                                        >
-                                            期間を指定
-                                        </button>
 
                                         {hasEndDate && (
                                             <select
