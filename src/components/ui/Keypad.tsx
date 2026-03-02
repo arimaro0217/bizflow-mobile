@@ -111,15 +111,11 @@ export function Keypad({ onConfirm, onCancel, initialValue = '' }: KeypadProps) 
             onConfirm(displayValue);
         }
         closeKeypad();
-        // キーパッドを閉じた後に表示位置をリセット（iOS等でのレイアウト崩れ防止）
-        window.scrollTo(0, 0);
     }, [displayValue, previousValue, operator, onConfirm, closeKeypad]);
 
     const handleCancel = useCallback(() => {
         onCancel?.();
         closeKeypad();
-        // キャンセル時も表示位置をリセット
-        window.scrollTo(0, 0);
     }, [onCancel, closeKeypad]);
 
     // キーボードイベントリスナー（PC/外付けキーボード対応）
@@ -186,16 +182,6 @@ export function Keypad({ onConfirm, onCancel, initialValue = '' }: KeypadProps) 
         }
     };
 
-    // 全てのタッチ/ポインターイベントをブロックするハンドラー
-    const blockAllEvents = {
-        onTouchStart: (e: React.TouchEvent) => e.stopPropagation(),
-        onTouchMove: (e: React.TouchEvent) => e.stopPropagation(),
-        onTouchEnd: (e: React.TouchEvent) => e.stopPropagation(),
-        onPointerDown: (e: React.PointerEvent) => e.stopPropagation(),
-        onPointerMove: (e: React.PointerEvent) => e.stopPropagation(),
-        onPointerUp: (e: React.PointerEvent) => e.stopPropagation(),
-    };
-
     const keys = [
         ['7', '8', '9', '÷'],
         ['4', '5', '6', '×'],
@@ -224,28 +210,14 @@ export function Keypad({ onConfirm, onCancel, initialValue = '' }: KeypadProps) 
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="fixed inset-0 bg-black/50 z-[9998] touch-none pointer-events-auto touch-manipulation"
+                        className="fixed inset-0 bg-black/60 z-[9998] touch-none pointer-events-auto"
                         onClick={handleCancel}
-                        {...blockAllEvents}
-                        // オーバーレイもビューポートに追従させる
-                        style={viewport ? {
-                            position: 'fixed',
-                            left: 0,
-                            width: '100%',
-                            ...containerStyle
-                        } : {}}
                     />
 
                     {/* キーパッドコンテナ */}
                     <div
                         className="fixed inset-x-0 z-[9999] flex items-end md:items-center justify-center pointer-events-none"
-                        style={viewport ? {
-                            position: 'fixed',
-                            ...containerStyle
-                        } : {
-                            top: 0,
-                            bottom: 0
-                        }}
+                        style={containerStyle}
                     >
                         <motion.div
                             key="keypad-content"
@@ -253,9 +225,8 @@ export function Keypad({ onConfirm, onCancel, initialValue = '' }: KeypadProps) 
                             animate={{ y: 0 }}
                             exit={{ y: '100%' }}
                             transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-                            className="w-full md:max-w-sm bg-surface-dark rounded-t-3xl md:rounded-2xl pb-safe md:pb-0 pointer-events-auto shadow-2xl overflow-hidden"
+                            className="w-full md:max-w-sm bg-surface-dark rounded-t-3xl md:rounded-2xl pb-safe md:pb-6 pointer-events-auto shadow-2xl overflow-hidden"
                             onClick={(e) => e.stopPropagation()}
-                            {...blockAllEvents}
                         >
                             {/* ハンドル（モバイルのみ） */}
                             <div className="flex justify-center py-3 md:hidden">
@@ -304,22 +275,19 @@ export function Keypad({ onConfirm, onCancel, initialValue = '' }: KeypadProps) 
                                 <div className="grid grid-cols-3 gap-2 mt-2">
                                     <button
                                         onClick={handleCancel}
-                                        onTouchStart={(e) => e.stopPropagation()}
-                                        className="h-14 rounded-2xl bg-surface-light text-gray-400 flex items-center justify-center active:scale-95 transition-transform pointer-events-auto"
+                                        className="h-14 rounded-2xl bg-surface-light text-gray-400 flex items-center justify-center active:scale-95 transition-transform"
                                     >
                                         <X className="w-6 h-6" />
                                     </button>
                                     <button
                                         onClick={handleBackspace}
-                                        onTouchStart={(e) => e.stopPropagation()}
-                                        className="h-14 rounded-2xl bg-surface-light text-gray-400 flex items-center justify-center active:scale-95 transition-transform pointer-events-auto"
+                                        className="h-14 rounded-2xl bg-surface-light text-gray-400 flex items-center justify-center active:scale-95 transition-transform"
                                     >
                                         <Delete className="w-6 h-6" />
                                     </button>
                                     <button
                                         onClick={handleConfirm}
-                                        onTouchStart={(e) => e.stopPropagation()}
-                                        className="h-14 rounded-2xl bg-primary-600 text-white flex items-center justify-center active:scale-95 transition-transform pointer-events-auto"
+                                        className="h-14 rounded-2xl bg-primary-600 text-white flex items-center justify-center active:scale-95 transition-transform"
                                     >
                                         <Check className="w-6 h-6" />
                                     </button>
