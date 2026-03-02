@@ -133,12 +133,12 @@ export function ProjectCreateWizard({
             if (watchedValues.clientId !== cid) {
                 setValue('clientId', cid as string);
             }
-            if (cid) {
+            if (cid && cid !== selectedClient?.id) {
                 const client = clients.find(c => c.id === cid);
                 if (client) setSelectedClient(client);
             }
         }
-    }, [watchedValues.clientId, initialClientId, clients, setValue]);
+    }, [watchedValues.clientId, initialClientId, clients, setValue, selectedClient?.id]);
 
     // クライアント選択時の処理
     const handleClientSelect = useCallback(

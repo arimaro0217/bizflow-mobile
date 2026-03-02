@@ -13,12 +13,23 @@ export function cn(...inputs: ClassValue[]) {
  * 金額をフォーマットする
  */
 export function formatCurrency(amount: string | number, currency = 'JPY'): string {
-    const num = typeof amount === 'string' ? new Decimal(amount).toNumber() : amount;
-    return new Intl.NumberFormat('ja-JP', {
-        style: 'currency',
-        currency,
-        maximumFractionDigits: 0,
-    }).format(num);
+    try {
+        if (amount === '' || amount === undefined || amount === null) {
+            return new Intl.NumberFormat('ja-JP', {
+                style: 'currency',
+                currency,
+                maximumFractionDigits: 0,
+            }).format(0);
+        }
+        const num = typeof amount === 'string' ? new Decimal(amount).toNumber() : amount;
+        return new Intl.NumberFormat('ja-JP', {
+            style: 'currency',
+            currency,
+            maximumFractionDigits: 0,
+        }).format(num);
+    } catch {
+        return '¥0';
+    }
 }
 
 /**
