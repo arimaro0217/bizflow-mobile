@@ -5,7 +5,8 @@ import { AppLayout } from '../components/layout/AppLayout';
 import { ConfirmDrawer } from '../components/ui';
 import { toast } from 'sonner';
 import { useAuth } from '../features/auth';
-import { RecurringMasterList, RecurringMasterForm, type RecurringMasterFormData } from '../features/recurring';
+import { RecurringMasterList, RecurringMasterForm } from '../features/recurring';
+import type { CreateRecurringMasterInput } from '../hooks/useRecurringMasters';
 import { ClientSheet, ClientFormSheet } from '../features/clients';
 import {
     useRecurringMasters,
@@ -52,26 +53,12 @@ export default function RecurringSettings({ onBack }: RecurringSettingsProps) {
         }
     }, [masters, transactions, clients, autoExtendRecurringTransactions]);
 
-    const handleCreateMaster = async (data: RecurringMasterFormData) => {
+    const handleCreateMaster = async (data: CreateRecurringMasterInput) => {
         try {
-            await createRecurringWithTransactions(
-                {
-                    title: data.title,
-                    baseAmount: data.baseAmount,
-                    type: data.type,
-                    clientId: data.clientId,
-                    memo: data.memo,
-                    frequency: data.frequency,
-                    dayOfPeriod: data.dayOfPeriod,
-                    monthOfYear: data.monthOfYear,
-                    startDate: data.startDate,
-                    endDate: data.endDate,
-                    isActive: true,
-                },
-                clients
-            );
+            await createRecurringWithTransactions(data, clients);
             console.log('定期取引を作成しました');
             setSelectedClient(null);
+            setIsFormOpen(false); // フォームを閉じる
         } catch (error) {
             console.error('定期取引の作成に失敗:', error);
         }

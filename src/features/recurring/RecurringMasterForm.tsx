@@ -10,6 +10,7 @@ import { FormDrawer } from '../../components/ui/FormDrawer';
 import { FormAmountInput, FormDatePicker, FormSelectButton, FormTextInput, FormField } from '../../components/ui/FormInputs';
 import { useAppStore } from '../../stores/appStore';
 import type { Client, RecurringMaster } from '../../types';
+import type { CreateRecurringMasterInput } from '../../hooks/useRecurringMasters';
 
 const recurringSchema = z.object({
     type: z.enum(['income', 'expense']),
@@ -22,12 +23,12 @@ const recurringSchema = z.object({
     endDate: z.date().optional(),
 });
 
-type RecurringFormData = z.infer<typeof recurringSchema>;
+export type RecurringMasterFormData = z.infer<typeof recurringSchema>;
 
 interface RecurringMasterFormProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
-    onSubmit: (data: Omit<RecurringMaster, 'id' | 'uid' | 'createdAt' | 'updatedAt'>) => void;
+    onSubmit: (data: CreateRecurringMasterInput) => void;
     clients: Client[];
     onOpenClientSheet: () => void;
     selectedClient?: Client | null;
@@ -56,7 +57,7 @@ export function RecurringMasterForm({
         watch,
         reset,
         formState: { errors, isSubmitting }
-    } = useForm<RecurringFormData>({
+    } = useForm<RecurringMasterFormData>({
         resolver: zodResolver(recurringSchema),
         defaultValues: {
             type: 'income',
@@ -106,7 +107,7 @@ export function RecurringMasterForm({
         }
     }, [selectedClient, setValue]);
 
-    const handleFormSubmit = (data: RecurringFormData) => {
+    const handleFormSubmit = (data: RecurringMasterFormData) => {
         onSubmit({
             type: data.type,
             baseAmount: data.baseAmount,
@@ -117,6 +118,7 @@ export function RecurringMasterForm({
             frequency: 'monthly',
             endDate: data.hasEndDate ? data.endDate || null : null,
             isActive: true,
+            memo: data.title, // Use title as memo if not provided or just placeholder
         });
         onOpenChange(false);
     };

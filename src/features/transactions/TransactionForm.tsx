@@ -39,12 +39,11 @@ export function TransactionForm({
     open,
     onOpenChange,
     onSubmit,
-    onOpenClientSheet,
+    onOpenClientSheet = () => { },
     initialDate = new Date(),
     selectedClient = null,
     initialTransaction = null,
     onDelete,
-    onCancel,
 }: TransactionFormProps) {
     const { openKeypad } = useAppStore();
     const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
@@ -216,7 +215,7 @@ export function TransactionForm({
                     placeholder="取引先を選択..."
                     value={watchedValues.clientId}
                     displayValue={selectedClient?.name}
-                    onClick={onOpenClientSheet}
+                    onClick={() => onOpenClientSheet()}
                 />
 
                 {/* メモ */}

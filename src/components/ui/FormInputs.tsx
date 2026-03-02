@@ -1,5 +1,5 @@
 import React from 'react';
-import { Calendar, Building2, Tag, Info } from 'lucide-react';
+import { Calendar, Building2, Info } from 'lucide-react';
 import { cn, formatCurrency } from '../../lib/utils';
 import { format } from 'date-fns';
 import { ja } from 'date-fns/locale';
