@@ -18,13 +18,6 @@ interface AppState {
     openKeypad: () => void;
     closeKeypad: () => void;
 
-    // 入力バッファ（電卓の入力中の値）
-    inputBuffer: string;
-    setInputBuffer: (value: string) => void;
-    appendToBuffer: (char: string) => void;
-    clearBuffer: () => void;
-    backspace: () => void;
-
     // カレンダー表示モード
     calendarView: 'week' | 'month';
     setCalendarView: (view: 'week' | 'month') => void;
@@ -58,17 +51,6 @@ export const useAppStore = create<AppState>()(
             isKeypadOpen: false,
             openKeypad: () => set({ isKeypadOpen: true }),
             closeKeypad: () => set({ isKeypadOpen: false }),
-
-            // 入力バッファ
-            inputBuffer: '',
-            setInputBuffer: (value) => set({ inputBuffer: value }),
-            appendToBuffer: (char) => set((state) => ({
-                inputBuffer: state.inputBuffer + char
-            })),
-            clearBuffer: () => set({ inputBuffer: '' }),
-            backspace: () => set((state) => ({
-                inputBuffer: state.inputBuffer.slice(0, -1)
-            })),
 
             // カレンダー表示モード
             calendarView: 'week',

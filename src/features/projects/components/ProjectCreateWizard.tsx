@@ -21,6 +21,7 @@ import type { Client, ProjectColor, Project } from '../../../types';
 import { DatePicker } from '../../../components/ui/DatePicker';
 import { Keypad } from '../../../components/ui/Keypad';
 import { useAppStore } from '../../../stores/appStore';
+import { useVisualViewport } from '../../../hooks/useVisualViewport';
 
 
 // =============================================================================
@@ -112,7 +113,15 @@ export function ProjectCreateWizard({
         isEditMode,
     } = useProjectWizard(initialDate, initialProject);
 
-    const { openKeypad } = useAppStore();
+    const { openKeypad, isKeypadOpen } = useAppStore();
+
+    const viewport = useVisualViewport();
+    const contentStyle = (viewport && !isKeypadOpen) ? {
+        bottom: `${Math.max(0, window.innerHeight - (viewport.height + viewport.offsetTop))}px`,
+        maxHeight: `${viewport.height}px`,
+    } : {
+        bottom: '0px'
+    };
 
     const { watch, setValue, handleSubmit, formState: { errors } } = form;
 
@@ -307,7 +316,8 @@ export function ProjectCreateWizard({
                 <Drawer.Portal>
                     <Drawer.Overlay className="fixed inset-0 bg-black/90 z-40" />
                     <Drawer.Content
-                        className="fixed bottom-0 left-0 right-0 z-50 bg-background rounded-t-3xl flex flex-col h-[95dvh]"
+                        className="fixed left-0 right-0 z-50 bg-background rounded-t-3xl flex flex-col h-[95dvh] after:hidden"
+                        style={contentStyle}
                         aria-describedby={undefined}
                     >
                         {/* アクセシビリティ用の非表示タイトル */}
@@ -790,10 +800,12 @@ export function ProjectCreateWizard({
                 value={watchedValues.endDate || watchedValues.startDate || new Date()}
                 onConfirm={(date) => setValue('endDate', date)}
             />
-            <Keypad
-                onConfirm={handleAmountConfirm}
-                initialValue={watchedValues.amount}
-            />
+            {open && (
+                <Keypad
+                    onConfirm={handleAmountConfirm}
+                    initialValue={watchedValues.amount}
+                />
+            )}
         </>
     );
 }

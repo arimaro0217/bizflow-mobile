@@ -204,7 +204,6 @@ export function Keypad({ onConfirm, onCancel, initialValue = '' }: KeypadProps) 
     const containerStyle = viewport ? {
         top: `${viewport.offsetTop}px`,
         height: `${viewport.height}px`,
-        minHeight: `${viewport.height}px`, // 確実に合わせる
     } : {
         top: 0,
         bottom: 0,

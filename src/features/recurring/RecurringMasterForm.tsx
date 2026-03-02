@@ -13,6 +13,7 @@ import { motion } from 'framer-motion';
 import { cn, formatCurrency } from '../../lib/utils';
 import { Button, Keypad } from '../../components/ui';
 import { useAppStore } from '../../stores/appStore';
+import { useVisualViewport } from '../../hooks/useVisualViewport';
 import type { Client, RecurringMaster } from '../../types';
 
 interface RecurringMasterFormProps {
@@ -63,6 +64,14 @@ export function RecurringMasterForm({
     const [startDate] = useState(new Date());
     const [hasEndDate, setHasEndDate] = useState(false);
     const [endMonths, setEndMonths] = useState(12);
+
+    const viewport = useVisualViewport();
+    const contentStyle = (viewport && !isKeypadOpen) ? {
+        bottom: `${Math.max(0, window.innerHeight - (viewport.height + viewport.offsetTop))}px`,
+        maxHeight: `${viewport.height}px`,
+    } : {
+        bottom: '0px'
+    };
 
     // 編集モード時の初期値セット
     useEffect(() => {
@@ -137,7 +146,8 @@ export function RecurringMasterForm({
                 <Drawer.Portal>
                     <Drawer.Overlay className="fixed inset-0 bg-black/50 z-40" />
                     <Drawer.Content
-                        className="fixed bottom-0 left-0 right-0 z-50 outline-none"
+                        className="fixed left-0 right-0 z-50 outline-none flex flex-col after:hidden"
+                        style={contentStyle}
                         onClick={(e) => e.stopPropagation()}
                         onPointerDown={(e) => e.stopPropagation()}
                         onTouchStart={(e) => e.stopPropagation()}
@@ -370,10 +380,12 @@ export function RecurringMasterForm({
             </Drawer.Root>
 
             {/* キーパッド */}
-            <Keypad
-                onConfirm={handleAmountConfirm}
-                initialValue={amount}
-            />
+            {open && (
+                <Keypad
+                    onConfirm={handleAmountConfirm}
+                    initialValue={amount}
+                />
+            )}
         </>
     );
 }

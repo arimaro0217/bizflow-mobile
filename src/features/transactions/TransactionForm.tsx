@@ -35,7 +35,7 @@ export function TransactionForm({
     onDelete,
     onCancel,
 }: TransactionFormProps) {
-    const { openKeypad } = useAppStore();
+    const { openKeypad, isKeypadOpen } = useAppStore();
     const [type, setType] = useState<'income' | 'expense'>('income');
     const [amount, setAmount] = useState('0');
     const [transactionDate, setTransactionDate] = useState(initialDate);
@@ -51,10 +51,15 @@ export function TransactionForm({
     // Visual Viewportの情報を使って下端の位置(bottom)を動的に調整する。
     // Android (Chrome) では window.innerHeight も縮むため bottom: 0 でよいが、
     // この計算式 (layoutHeight - visualBottom) は両方のケースに対応できる。
-    const contentStyle = viewport ? {
+    // キーパッド表示中は、キーパッド自身がビューポートを調整するため、
+    // 背景のドロワーは位置調整をスキップ（bottom: 0を維持）させる。
+    // これにより、キーパッドのオーバーレイによるビューポート変化でフォームが動くのを防ぐ。
+    const contentStyle = (viewport && !isKeypadOpen) ? {
         bottom: `${Math.max(0, window.innerHeight - (viewport.height + viewport.offsetTop))}px`,
         maxHeight: `${viewport.height}px`, // 高さが溢れないように制限
-    } : {};
+    } : {
+        bottom: '0px'
+    };
 
     // 編集モード時の初期値セット
     useEffect(() => {
@@ -299,10 +304,12 @@ export function TransactionForm({
             </Drawer.Root>
 
             {/* キーパッド */}
-            <Keypad
-                onConfirm={handleAmountConfirm}
-                initialValue={amount}
-            />
+            {open && (
+                <Keypad
+                    onConfirm={handleAmountConfirm}
+                    initialValue={amount}
+                />
+            )}
 
             {/* 日付ピッカー */}
             <DatePicker
