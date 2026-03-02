@@ -1,4 +1,3 @@
-```
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -14,13 +13,13 @@ import type { Client, RecurringMaster } from '../../types';
 
 const recurringSchema = z.object({
     type: z.enum(['income', 'expense']),
-    amount: z.string().min(1, '金額を入力してください').refine(val => parseFloat(val) > 0, '金額が正しくありません'),
+    baseAmount: z.string().min(1, '金額を入力してください').refine(val => parseFloat(val) > 0, '金額が正しくありません'),
     title: z.string().min(1, '名称を入力してください'),
     clientId: z.string().optional(),
     startDate: z.date(),
-    day: z.number().min(1).max(31),
+    dayOfPeriod: z.number().min(1).max(31),
     hasEndDate: z.boolean(),
-    endMonths: z.number().min(1).max(60).optional(),
+    endDate: z.date().optional(),
 });
 
 type RecurringFormData = z.infer<typeof recurringSchema>;
@@ -48,6 +47,7 @@ export function RecurringMasterForm({
 }: RecurringMasterFormProps) {
     const { openKeypad } = useAppStore();
     const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+    const [isEndDatePickerOpen, setIsEndDatePickerOpen] = useState(false);
 
     const {
         register,
@@ -60,13 +60,12 @@ export function RecurringMasterForm({
         resolver: zodResolver(recurringSchema),
         defaultValues: {
             type: 'income',
-            amount: '0',
+            baseAmount: '0',
             title: '',
             clientId: '',
             startDate: new Date(),
-            day: new Date().getDate(),
+            dayOfPeriod: new Date().getDate(),
             hasEndDate: false,
-            endMonths: 12,
         }
     });
 
@@ -78,24 +77,23 @@ export function RecurringMasterForm({
             if (initialMaster) {
                 reset({
                     type: initialMaster.type,
-                    amount: initialMaster.amount,
+                    baseAmount: initialMaster.baseAmount,
                     title: initialMaster.title,
                     clientId: initialMaster.clientId || '',
                     startDate: initialMaster.startDate || new Date(),
-                    day: initialMaster.day,
-                    hasEndDate: !!initialMaster.endMonths,
-                    endMonths: initialMaster.endMonths || 12,
+                    dayOfPeriod: initialMaster.dayOfPeriod,
+                    hasEndDate: !!initialMaster.endDate,
+                    endDate: initialMaster.endDate || undefined,
                 });
             } else {
                 reset({
                     type: 'income',
-                    amount: '0',
+                    baseAmount: '0',
                     title: '',
                     clientId: selectedClient?.id || '',
                     startDate: new Date(),
-                    day: new Date().getDate(),
+                    dayOfPeriod: new Date().getDate(),
                     hasEndDate: false,
-                    endMonths: 12,
                 });
             }
         }
@@ -111,13 +109,13 @@ export function RecurringMasterForm({
     const handleFormSubmit = (data: RecurringFormData) => {
         onSubmit({
             type: data.type,
-            amount: data.amount,
+            baseAmount: data.baseAmount,
             title: data.title,
             clientId: data.clientId || undefined,
             startDate: data.startDate,
-            day: data.day,
-            interval: 'monthly',
-            endMonths: data.hasEndDate ? data.endMonths : undefined,
+            dayOfPeriod: data.dayOfPeriod,
+            frequency: 'monthly',
+            endDate: data.hasEndDate ? data.endDate || null : null,
             isActive: true,
         });
         onOpenChange(false);
@@ -140,7 +138,7 @@ export function RecurringMasterForm({
             <Button
                 className="flex-[2] bg-primary-600 hover:bg-primary-500 text-white"
                 onClick={handleSubmit(handleFormSubmit)}
-                disabled={isSubmitting || watchedValues.amount === '0'}
+                disabled={isSubmitting || watchedValues.baseAmount === '0'}
             >
                 {initialMaster ? '更新する' : '登録する'}
             </Button>
@@ -152,63 +150,156 @@ export function RecurringMasterForm({
             <FormDrawer
                 open={open}
                 onOpenChange={onOpenChange}
+                title={initialMaster ? '定期取引を編集' : '定期取引を登録'}
+                footer={footer}
+            >
+                {/* 収入/支出切替 */}
+                <div className="grid grid-cols-2 gap-2">
+                    <motion.button
+                        whileTap={{ scale: 0.98 }}
+                        type="button"
+                        onClick={() => setValue('type', 'income')}
+                        className={cn(
+                            'flex items-center justify-center gap-2 py-4 rounded-xl font-medium transition-colors',
+                            watchedValues.type === 'income'
+                                ? 'bg-income text-white'
+                                : 'bg-surface-light text-gray-400'
+                        )}
+                    >
+                        <ArrowDownCircle className="w-5 h-5" />
+                        収入
+                    </motion.button>
+                    <motion.button
+                        whileTap={{ scale: 0.98 }}
+                        type="button"
+                        onClick={() => setValue('type', 'expense')}
+                        className={cn(
+                            'flex items-center justify-center gap-2 py-4 rounded-xl font-medium transition-colors',
+                            watchedValues.type === 'expense'
+                                ? 'bg-expense text-white'
+                                : 'bg-surface-light text-gray-400'
+                        )}
+                    >
+                        <ArrowUpCircle className="w-5 h-5" />
+                        支出
+                    </motion.button>
+                </div>
 
-                                        {hasEndDate && (
-                                            <select
-                                                value={endMonths}
-                                                onChange={(e) => setEndMonths(Number(e.target.value))}
-                                                className="w-full px-4 py-3 bg-surface rounded-xl text-white outline-none focus:ring-2 focus:ring-primary-500"
-                                            >
-                                                <option value={6}>6ヶ月間</option>
-                                                <option value={12}>1年間</option>
-                                                <option value={24}>2年間</option>
-                                                <option value={36}>3年間</option>
-                                                <option value={60}>5年間</option>
-                                            </select>
-                                        )}
-                                    </div>
-                                </div>
+                {/* 名称 */}
+                <FormTextInput
+                    label="名称"
+                    placeholder="例: 月額サーバー費用"
+                    {...register('title')}
+                    error={errors.title?.message}
+                />
 
-                                {/* 取引先 */}
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-400 mb-2">
-                                        取引先（入金サイト計算用・任意）
-                                    </label>
-                                    <button
-                                        onClick={onOpenClientSheet}
-                                        className="w-full flex items-center gap-3 p-4 bg-surface rounded-xl text-left"
-                                    >
-                                        <Building2 className="w-5 h-5 text-gray-400" />
-                                        <span className={selectedClient ? 'text-white' : 'text-gray-500'}>
-                                            {selectedClient?.name || '取引先を選択...'}
-                                        </span>
-                                    </button>
-                                </div>
+                {/* 金額入力 */}
+                <FormAmountInput
+                    value={watchedValues.baseAmount}
+                    type={watchedValues.type}
+                    onClick={openKeypad}
+                    error={errors.baseAmount?.message}
+                />
 
-                                {/* 登録ボタン */}
-                                <div className="pt-2 pb-4">
-                                    <Button
-                                        onClick={handleSubmit}
-                                        disabled={amount === '0' || !title.trim()}
-                                        size="lg"
-                                        className="w-full"
-                                    >
-                                        {isEditing ? '更新する' : '登録する'}
-                                    </Button>
-                                </div>
-                            </div>
+                {/* 開始日 */}
+                <FormDatePicker
+                    label="開始月"
+                    date={watchedValues.startDate}
+                    onClick={() => setIsDatePickerOpen(true)}
+                    error={errors.startDate?.message}
+                />
+
+                {/* 毎月の日付 */}
+                <FormField label="毎月の振替日" error={errors.dayOfPeriod?.message}>
+                    <div className="flex items-center gap-4">
+                        <input
+                            type="range"
+                            min="1"
+                            max="31"
+                            {...register('dayOfPeriod', { valueAsNumber: true })}
+                            className="flex-1 accent-primary-500"
+                        />
+                        <span className="text-2xl font-semibold text-white tabular-nums w-12 text-center">
+                            {watchedValues.dayOfPeriod}日
+                        </span>
+                    </div>
+                </FormField>
+
+                {/* 取引先 */}
+                <FormSelectButton
+                    label="取引先（任意）"
+                    placeholder="取引先を選択..."
+                    value={watchedValues.clientId}
+                    displayValue={selectedClient?.name || clients.find(c => c.id === watchedValues.clientId)?.name}
+                    onClick={onOpenClientSheet}
+                />
+
+                {/* 終了設定 */}
+                <div className="space-y-4 pt-2">
+                    <button
+                        type="button"
+                        onClick={() => setValue('hasEndDate', !watchedValues.hasEndDate)}
+                        className="flex items-center gap-3 w-full"
+                    >
+                        <div className={cn(
+                            "w-6 h-6 rounded-md border flex items-center justify-center transition-colors",
+                            watchedValues.hasEndDate ? "bg-primary-500 border-primary-500" : "border-gray-600"
+                        )}>
+                            {watchedValues.hasEndDate && <div className="w-2.5 h-2.5 bg-white rounded-sm" />}
                         </div>
-                    </Drawer.Content>
-                </Drawer.Portal>
-            </Drawer.Root>
+                        <span className="text-white font-medium">終了期限を設定する</span>
+                    </button>
+
+                    {watchedValues.hasEndDate && (
+                        <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            className="pl-9 space-y-3"
+                        >
+                            <FormDatePicker
+                                label="終了日"
+                                date={watchedValues.endDate || new Date()}
+                                onClick={() => setIsEndDatePickerOpen(true)}
+                                error={errors.endDate?.message}
+                            />
+                            <p className="text-xs text-gray-500 flex items-center gap-1">
+                                <Info className="w-3 h-3" />
+                                終了期限を過ぎると、自動的に「無効」になります。
+                            </p>
+                        </motion.div>
+                    )}
+                </div>
+            </FormDrawer>
 
             {/* キーパッド */}
             {open && (
                 <Keypad
-                    onConfirm={handleAmountConfirm}
-                    initialValue={amount}
+                    onConfirm={(val) => setValue('baseAmount', val, { shouldValidate: true })}
+                    initialValue={watchedValues.baseAmount}
                 />
             )}
+
+            {/* 日付ピッカー */}
+            <DatePicker
+                open={isDatePickerOpen}
+                onOpenChange={setIsDatePickerOpen}
+                value={watchedValues.startDate}
+                onConfirm={(date) => {
+                    setValue('startDate', date, { shouldValidate: true });
+                    setIsDatePickerOpen(false);
+                }}
+            />
+
+            {/* 終了日ピッカー */}
+            <DatePicker
+                open={isEndDatePickerOpen}
+                onOpenChange={setIsEndDatePickerOpen}
+                value={watchedValues.endDate || new Date()}
+                onConfirm={(date) => {
+                    setValue('endDate', date, { shouldValidate: true });
+                    setIsEndDatePickerOpen(false);
+                }}
+            />
         </>
     );
 }

@@ -24,11 +24,15 @@ export function Keypad({ onConfirm, onCancel, initialValue = '' }: KeypadProps) 
 
     const viewport = useVisualViewport();
 
+    // 開くたびに状態をリセット
     useEffect(() => {
-        if (initialValue) {
-            setDisplayValue(initialValue);
+        if (isKeypadOpen) {
+            setPreviousValue(null);
+            setOperator(null);
+            setWaitingForOperand(false);
+            setDisplayValue(initialValue || '0');
         }
-    }, [initialValue]);
+    }, [isKeypadOpen, initialValue]);
 
     // 背景スクロール防止
     useEffect(() => {
