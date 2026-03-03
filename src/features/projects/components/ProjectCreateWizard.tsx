@@ -95,7 +95,7 @@ export function ProjectCreateWizard({
         isEditMode,
     } = useProjectWizard(initialDate, initialProject);
 
-    const { openKeypad } = useAppStore();
+    const { openKeypad, closeKeypad } = useAppStore();
 
     const { watch, setValue, register, handleSubmit, formState: { errors } } = form;
 
@@ -172,6 +172,7 @@ export function ProjectCreateWizard({
                 ...data,
                 client: selectedClient, // selectedClientを渡す
             });
+            closeKeypad();
             onOpenChange(false); // 成功したら閉じる
         } catch (error) {
             console.error('案件作成/更新エラー:', error);
@@ -218,7 +219,10 @@ export function ProjectCreateWizard({
         <>
             <FormDrawer
                 open={open}
-                onOpenChange={onOpenChange}
+                onOpenChange={(isOpen) => {
+                    if (!isOpen) closeKeypad();
+                    onOpenChange(isOpen);
+                }}
                 title={STEP_TITLES[currentStep]}
                 footer={footer}
             >

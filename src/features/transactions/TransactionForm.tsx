@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
+import { useFormSync } from '../../hooks/useFormSync';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -45,7 +46,7 @@ export function TransactionForm({
     initialTransaction = null,
     onDelete,
 }: TransactionFormProps) {
-    const { openKeypad } = useAppStore();
+    const { openKeypad, closeKeypad } = useAppStore();
     const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
 
     const {
@@ -68,35 +69,34 @@ export function TransactionForm({
 
     const watchedValues = watch();
 
-    // 編集モード時の初期値セット
-    useEffect(() => {
-        if (open) {
-            if (initialTransaction) {
-                reset({
-                    type: initialTransaction.type,
-                    amount: initialTransaction.amount,
-                    transactionDate: initialTransaction.transactionDate || new Date(),
-                    memo: initialTransaction.memo || '',
-                    clientId: initialTransaction.clientId || '',
-                });
-            } else {
-                reset({
-                    type: 'income',
-                    amount: '0',
-                    transactionDate: initialDate,
-                    memo: '',
-                    clientId: selectedClient?.id || '',
-                });
-            }
+    const handleReset = useCallback(() => {
+        if (initialTransaction) {
+            reset({
+                type: initialTransaction.type,
+                amount: initialTransaction.amount,
+                transactionDate: initialTransaction.transactionDate || new Date(),
+                memo: initialTransaction.memo || '',
+                clientId: initialTransaction.clientId || '',
+            });
+        } else {
+            reset({
+                type: 'income',
+                amount: '0',
+                transactionDate: initialDate,
+                memo: '',
+                clientId: selectedClient?.id || '',
+            });
         }
-    }, [open, initialTransaction, initialDate, reset, selectedClient]);
+    }, [reset, initialTransaction, initialDate, selectedClient]);
 
-    // 取引先が選択されたらフォームに反映
-    useEffect(() => {
-        if (selectedClient) {
-            setValue('clientId', selectedClient.id);
-        }
-    }, [selectedClient, setValue]);
+    // フォーム同期フックの使用
+    useFormSync({
+        form: { setValue } as any,
+        open,
+        selectedClient,
+        clientIdField: 'clientId',
+        onReset: handleReset
+    });
 
     const handleFormSubmit = (data: TransactionFormData) => {
         if (data.amount === '0' || !data.amount) return;
@@ -127,7 +127,8 @@ export function TransactionForm({
             clientId: data.clientId || undefined,
             memo: data.memo?.trim() || undefined,
         });
-        onOpenChange(false); // Close drawer after submission
+        closeKeypad();
+        onOpenChange(false);
     };
 
     const footer = (
@@ -158,7 +159,10 @@ export function TransactionForm({
         <>
             <FormDrawer
                 open={open}
-                onOpenChange={onOpenChange}
+                onOpenChange={(isOpen) => {
+                    if (!isOpen) closeKeypad();
+                    onOpenChange(isOpen);
+                }}
                 title={initialTransaction ? '取引を編集' : '取引を登録'}
                 footer={footer}
             >

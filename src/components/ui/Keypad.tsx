@@ -37,11 +37,15 @@ export function Keypad({ onConfirm, onCancel, initialValue = '' }: KeypadProps) 
     // 背景スクロール防止
     useEffect(() => {
         if (isKeypadOpen) {
-            const originalStyle = window.getComputedStyle(document.body).overflow;
-            document.body.style.overflow = 'hidden';
-            return () => {
-                document.body.style.overflow = originalStyle;
-            };
+            const body = document.body;
+            const originalOverflow = body.style.overflow;
+            // 既にhiddenの場合は二重にセットしない（vaul等の干渉を避ける）
+            if (originalOverflow !== 'hidden') {
+                body.style.overflow = 'hidden';
+                return () => {
+                    body.style.overflow = originalOverflow;
+                };
+            }
         }
     }, [isKeypadOpen]);
 

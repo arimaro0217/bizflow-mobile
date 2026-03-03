@@ -116,7 +116,7 @@ export function LoginPage() {
                     </button>
 
                     <p className="text-center text-gray-500 text-[10px] mt-4 opacity-30">
-                        v1.2.0 - Input Form Refactor & Fixes
+                        v1.2.1 - Scroll & Layout Fixes
                     </p>
                 </div>
             </motion.div>

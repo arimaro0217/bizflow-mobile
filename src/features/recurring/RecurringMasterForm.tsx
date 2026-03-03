@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { useFormSync } from '../../hooks/useFormSync';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -72,40 +73,39 @@ export function RecurringMasterForm({
 
     const watchedValues = watch();
 
-    // 編集モード時の初期値セット
-    useEffect(() => {
-        if (open) {
-            if (initialMaster) {
-                reset({
-                    type: initialMaster.type,
-                    baseAmount: initialMaster.baseAmount,
-                    title: initialMaster.title,
-                    clientId: initialMaster.clientId || '',
-                    startDate: initialMaster.startDate || new Date(),
-                    dayOfPeriod: initialMaster.dayOfPeriod,
-                    hasEndDate: !!initialMaster.endDate,
-                    endDate: initialMaster.endDate || undefined,
-                });
-            } else {
-                reset({
-                    type: 'income',
-                    baseAmount: '0',
-                    title: '',
-                    clientId: selectedClient?.id || '',
-                    startDate: new Date(),
-                    dayOfPeriod: new Date().getDate(),
-                    hasEndDate: false,
-                });
-            }
+    const handleReset = useCallback(() => {
+        if (initialMaster) {
+            reset({
+                type: initialMaster.type,
+                baseAmount: initialMaster.baseAmount,
+                title: initialMaster.title,
+                clientId: initialMaster.clientId || '',
+                startDate: initialMaster.startDate || new Date(),
+                dayOfPeriod: initialMaster.dayOfPeriod,
+                hasEndDate: !!initialMaster.endDate,
+                endDate: initialMaster.endDate || undefined,
+            });
+        } else {
+            reset({
+                type: 'income',
+                baseAmount: '0',
+                title: '',
+                clientId: selectedClient?.id || '',
+                startDate: new Date(),
+                dayOfPeriod: new Date().getDate(),
+                hasEndDate: false,
+            });
         }
-    }, [open, initialMaster, reset, selectedClient]);
+    }, [reset, initialMaster, selectedClient]);
 
-    // 取引先が選択されたらフォームに反映
-    useEffect(() => {
-        if (selectedClient) {
-            setValue('clientId', selectedClient.id);
-        }
-    }, [selectedClient, setValue]);
+    // フォーム同期フックの使用
+    useFormSync({
+        form: { setValue } as any,
+        open,
+        selectedClient,
+        clientIdField: 'clientId',
+        onReset: handleReset
+    });
 
     const handleFormSubmit = (data: RecurringMasterFormData) => {
         onSubmit({
