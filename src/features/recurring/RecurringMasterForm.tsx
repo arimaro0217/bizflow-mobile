@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useFormSync } from '../../hooks/useFormSync';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -47,7 +47,7 @@ export function RecurringMasterForm({
     initialMaster = null,
     onDelete,
 }: RecurringMasterFormProps) {
-    const { openKeypad } = useAppStore();
+    const { openKeypad, closeKeypad } = useAppStore();
     const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
     const [isEndDatePickerOpen, setIsEndDatePickerOpen] = useState(false);
 
@@ -120,6 +120,7 @@ export function RecurringMasterForm({
             isActive: true,
             memo: data.title, // Use title as memo if not provided or just placeholder
         });
+        closeKeypad();
         onOpenChange(false);
     };
 
@@ -151,7 +152,10 @@ export function RecurringMasterForm({
         <>
             <FormDrawer
                 open={open}
-                onOpenChange={onOpenChange}
+                onOpenChange={(isOpen) => {
+                    if (!isOpen) closeKeypad();
+                    onOpenChange(isOpen);
+                }}
                 title={initialMaster ? '定期取引を編集' : '定期取引を登録'}
                 footer={footer}
             >
