@@ -57,10 +57,13 @@ export default function RecurringSettings({ onBack }: RecurringSettingsProps) {
         try {
             await createRecurringWithTransactions(data, clients);
             console.log('定期取引を作成しました');
+            toast.success('定期取引を作成しました');
             setSelectedClient(null);
             setIsFormOpen(false); // フォームを閉じる
         } catch (error) {
             console.error('定期取引の作成に失敗:', error);
+            toast.error('定期取引の作成に失敗しました');
+            throw error;
         }
     };
 
@@ -99,8 +102,10 @@ export default function RecurringSettings({ onBack }: RecurringSettingsProps) {
         try {
             await updateRecurringMaster(master.id, { isActive });
             console.log(`定期取引を${isActive ? '有効' : '無効'}にしました`);
+            toast.success(`定期取引を${isActive ? '有効' : '無効'}にしました`);
         } catch (error) {
             console.error('更新に失敗:', error);
+            toast.error('定期取引の更新に失敗しました');
         }
     };
 
@@ -108,8 +113,10 @@ export default function RecurringSettings({ onBack }: RecurringSettingsProps) {
         try {
             await addClient(data);
             console.log('取引先を作成しました');
+            toast.success('取引先を作成しました');
         } catch (error) {
             console.error('取引先の作成に失敗:', error);
+            toast.error('取引先の作成に失敗しました');
         }
     };
 

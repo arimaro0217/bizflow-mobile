@@ -28,13 +28,12 @@ import { toast } from 'sonner';
 import { cn } from '../../../lib/utils';
 import { useCalendarLayout } from '../hooks/useCalendarLayout';
 import type { RenderableEvent } from '../types';
-import type { Project, Transaction, Client } from '../../../types';
+import type { Project, ProjectStatus, Transaction, Client } from '../../../types';
 import { DragOverlayBar } from './DraggableProjectBar';
 import { ProjectPopover } from './ProjectPopover';
 import { DateTransactionsSheet } from './DateTransactionsSheet';
 import CalendarDayCell from './CalendarDayCell';
 import { useProjectOperations } from '../../../hooks/useProjectOperations';
-import { getDisplayDate } from '../../../lib/transactionHelpers';
 import { useAuth } from '../../../features/auth';
 import { useAppStore } from '../../../stores/appStore';
 
@@ -250,20 +249,11 @@ export function SmartCalendar({
                 lastTapRef.current = null;
             }
 
-            // その日のトランザクションを取得（useCalendarLayoutとロジックを統一）
-            const dayTxs = transactions.filter(t => {
-                const effectiveDate = getDisplayDate(t, financeViewMode);
-                if (!effectiveDate) return false;
+            // その日のトランザクションが存在するか、useCalendarLayout で計算済みのサマリを利用
+            const txSummary = transactionsByDate[dateKey];
+            const hasTransactions = txSummary && (txSummary.income > 0 || txSummary.expense > 0);
 
-                // date-fnsのisSameDayは0時0分補正などを行ってくれるが、
-                // ここでは日付オブジェクトの年月日で比較する（SmartCalendarのグリッドロジックに合わせる）
-                const d = new Date(effectiveDate);
-                return d.getFullYear() === date.getFullYear() &&
-                    d.getMonth() === date.getMonth() &&
-                    d.getDate() === date.getDate();
-            });
-
-            if (dayTxs.length > 0) {
+            if (hasTransactions) {
                 onDetailOpenChange?.(true);
             } else {
                 // データがない場合は登録画面へ
@@ -272,11 +262,43 @@ export function SmartCalendar({
         } else {
             lastTapRef.current = { date: dateKey, time: now };
         }
-    }, [onDateClick, onDateDoubleClick, onDetailOpenChange, selectedDateKey, transactions, financeViewMode]);
+    }, [onDateClick, onDateDoubleClick, onDetailOpenChange, selectedDateKey, transactionsByDate]);
 
     const handleProjectSelect = React.useCallback((project: Project) => {
         setSelectedProject(project);
     }, []);
+
+    const handleClosePopover = React.useCallback(() => {
+        setSelectedProject(null);
+    }, []);
+
+    const handleStatusChange = React.useCallback(async (status: ProjectStatus) => {
+        if (!selectedProject) return;
+        try {
+            await updateProject(selectedProject.id, { status });
+            toast.success('ステータスを更新しました');
+        } catch (e) {
+            toast.error('ステータスの更新に失敗しました');
+        }
+    }, [selectedProject, updateProject]);
+
+    const handleEditProject = React.useCallback(() => {
+        if (!selectedProject) return;
+        onProjectClick?.(selectedProject);
+    }, [selectedProject, onProjectClick]);
+
+    const handleDeleteProject = React.useCallback(async (deleteRelatedTransactions: boolean) => {
+        if (!selectedProject) return;
+        try {
+            await deleteProject(selectedProject.id, deleteRelatedTransactions);
+            setSelectedProject(null);
+            toast.success(deleteRelatedTransactions
+                ? '案件と関連取引を削除しました'
+                : '案件を削除しました');
+        } catch (e) {
+            toast.error('案件の削除に失敗しました');
+        }
+    }, [selectedProject, deleteProject]);
 
     return (
         <DndContext
@@ -411,18 +433,10 @@ export function SmartCalendar({
                 <ProjectPopover
                     project={selectedProject}
                     isOpen={!!selectedProject}
-                    onClose={() => setSelectedProject(null)}
-                    onStatusChange={(status) => {
-                        updateProject(selectedProject.id, { status });
-                    }}
-                    onEdit={() => onProjectClick?.(selectedProject)}
-                    onDelete={async (deleteRelatedTransactions) => {
-                        await deleteProject(selectedProject.id, deleteRelatedTransactions);
-                        setSelectedProject(null);
-                        toast.success(deleteRelatedTransactions
-                            ? '案件と関連取引を削除しました'
-                            : '案件を削除しました');
-                    }}
+                    onClose={handleClosePopover}
+                    onStatusChange={handleStatusChange}
+                    onEdit={handleEditProject}
+                    onDelete={handleDeleteProject}
                 />
             )}
 

@@ -81,7 +81,12 @@ export async function recalculateSettlement(
         }
 
         // ---------------------------------------------------------------------
-        // 2. 各トランザクションに対してガード処理 + 再計算
+        // 2. クライアントマップの作成 (O(1) アクセス用)
+        // ---------------------------------------------------------------------
+        const clientMap = new Map<string, Client>(clients.map(c => [c.id, c]));
+
+        // ---------------------------------------------------------------------
+        // 3. 各トランザクションに対してガード処理 + 再計算
         // ---------------------------------------------------------------------
         for (const docSnap of snapshot.docs) {
             const tx = docSnap.data() as Omit<Transaction, 'id'>;
@@ -113,9 +118,9 @@ export async function recalculateSettlement(
             }
 
             // -----------------------------------------------------------------
-            // 3. 新しい入金日を計算
+            // 4. 新しい入金日を計算
             // -----------------------------------------------------------------
-            const client = clients.find(c => c.id === project.clientId);
+            const client = clientMap.get(project.clientId);
             if (!client) {
                 result.skippedCount++;
                 result.warnings.push('取引先情報が見つかりませんでした');
@@ -130,7 +135,7 @@ export async function recalculateSettlement(
             );
 
             // -----------------------------------------------------------------
-            // 4. バッチ更新キューに追加
+            // 5. バッチ更新キューに追加
             // -----------------------------------------------------------------
             batch.update(txRef, {
                 transactionDate: newEndDate,    // 発生日も更新

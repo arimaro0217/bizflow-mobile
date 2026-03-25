@@ -26,7 +26,7 @@ type TransactionFormData = z.infer<typeof transactionSchema>;
 interface TransactionFormProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
-    onSubmit: (data: Omit<Transaction, 'id' | 'uid' | 'createdAt' | 'updatedAt'>) => void;
+    onSubmit: (data: Omit<Transaction, 'id' | 'uid' | 'createdAt' | 'updatedAt'>) => Promise<void> | void;
     clients?: Client[];
     onOpenClientSheet?: () => void;
     initialDate?: Date;
@@ -55,7 +55,7 @@ export function TransactionForm({
         setValue,
         watch,
         reset,
-        formState: { errors, isSubmitting }
+        formState: { errors, isSubmitting, isDirty }
     } = useForm<TransactionFormData>({
         resolver: zodResolver(transactionSchema),
         defaultValues: {
@@ -98,7 +98,7 @@ export function TransactionForm({
         onReset: handleReset
     });
 
-    const handleFormSubmit = (data: TransactionFormData) => {
+    const handleFormSubmit = async (data: TransactionFormData) => {
         if (data.amount === '0' || !data.amount) return;
 
         const dateWithNoon = new Date(data.transactionDate);
@@ -117,18 +117,22 @@ export function TransactionForm({
             settlementDate.setHours(12, 0, 0, 0);
         }
 
-        onSubmit({
-            type: data.type,
-            amount: data.amount,
-            taxRate: '0.1',
-            transactionDate: dateWithNoon,
-            settlementDate,
-            isSettled: initialTransaction ? initialTransaction.isSettled : false,
-            clientId: data.clientId || undefined,
-            memo: data.memo?.trim() || undefined,
-        });
-        closeKeypad();
-        onOpenChange(false);
+        try {
+            await onSubmit({
+                type: data.type,
+                amount: data.amount,
+                taxRate: '0.1',
+                transactionDate: dateWithNoon,
+                settlementDate,
+                isSettled: initialTransaction ? initialTransaction.isSettled : false,
+                clientId: data.clientId || undefined,
+                memo: data.memo?.trim() || undefined,
+            });
+            closeKeypad();
+            onOpenChange(false);
+        } catch (error) {
+            // エラー時はフォームを閉じない
+        }
     };
 
     const footer = (
@@ -149,6 +153,7 @@ export function TransactionForm({
                 className="flex-[2] bg-primary-600 hover:bg-primary-500 text-white"
                 onClick={handleSubmit(handleFormSubmit)}
                 disabled={isSubmitting || watchedValues.amount === '0'}
+                isLoading={isSubmitting}
             >
                 {initialTransaction ? '更新する' : '登録する'}
             </Button>
@@ -165,6 +170,7 @@ export function TransactionForm({
                 }}
                 title={initialTransaction ? '取引を編集' : '取引を登録'}
                 footer={footer}
+                preventDismiss={isDirty}
             >
                 {/* 収入/支出切替 */}
                 <div className="grid grid-cols-2 gap-2">

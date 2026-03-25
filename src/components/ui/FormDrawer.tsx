@@ -13,6 +13,7 @@ interface FormDrawerProps {
     footer?: React.ReactNode;
     maxHeight?: string;
     className?: string;
+    preventDismiss?: boolean;
 }
 
 export function FormDrawer({
@@ -23,6 +24,7 @@ export function FormDrawer({
     footer,
     maxHeight = '85dvh',
     className,
+    preventDismiss = false,
 }: FormDrawerProps) {
     const { isKeypadOpen } = useAppStore();
     const viewport = useVisualViewport();
@@ -40,7 +42,7 @@ export function FormDrawer({
     }, [onOpenChange]);
 
     return (
-        <Drawer.Root open={open} onOpenChange={onOpenChange} dismissible={true}>
+        <Drawer.Root open={open} onOpenChange={onOpenChange} dismissible={!preventDismiss && !isKeypadOpen}>
             <Drawer.Portal>
                 <Drawer.Overlay className="fixed inset-0 bg-black/50 z-40" />
                 <Drawer.Content

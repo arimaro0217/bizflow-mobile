@@ -29,7 +29,7 @@ export type RecurringMasterFormData = z.infer<typeof recurringSchema>;
 interface RecurringMasterFormProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
-    onSubmit: (data: CreateRecurringMasterInput) => void;
+    onSubmit: (data: CreateRecurringMasterInput) => Promise<void> | void;
     clients: Client[];
     onOpenClientSheet: () => void;
     selectedClient?: Client | null;
@@ -57,7 +57,7 @@ export function RecurringMasterForm({
         setValue,
         watch,
         reset,
-        formState: { errors, isSubmitting }
+        formState: { errors, isSubmitting, isDirty }
     } = useForm<RecurringMasterFormData>({
         resolver: zodResolver(recurringSchema),
         defaultValues: {
@@ -107,21 +107,25 @@ export function RecurringMasterForm({
         onReset: handleReset
     });
 
-    const handleFormSubmit = (data: RecurringMasterFormData) => {
-        onSubmit({
-            type: data.type,
-            baseAmount: data.baseAmount,
-            title: data.title,
-            clientId: data.clientId || undefined,
-            startDate: data.startDate,
-            dayOfPeriod: data.dayOfPeriod,
-            frequency: 'monthly',
-            endDate: data.hasEndDate ? data.endDate || null : null,
-            isActive: true,
-            memo: data.title, // Use title as memo if not provided or just placeholder
-        });
-        closeKeypad();
-        onOpenChange(false);
+    const handleFormSubmit = async (data: RecurringMasterFormData) => {
+        try {
+            await onSubmit({
+                type: data.type,
+                baseAmount: data.baseAmount,
+                title: data.title,
+                clientId: data.clientId || undefined,
+                startDate: data.startDate,
+                dayOfPeriod: data.dayOfPeriod,
+                frequency: 'monthly',
+                endDate: data.hasEndDate ? data.endDate || null : null,
+                isActive: true,
+                memo: data.title, // Use title as memo if not provided or just placeholder
+            });
+            closeKeypad();
+            onOpenChange(false);
+        } catch (error) {
+            // 失敗時はフォームを開いたままにする
+        }
     };
 
     const footer = (
@@ -142,6 +146,7 @@ export function RecurringMasterForm({
                 className="flex-[2] bg-primary-600 hover:bg-primary-500 text-white"
                 onClick={handleSubmit(handleFormSubmit)}
                 disabled={isSubmitting || watchedValues.baseAmount === '0'}
+                isLoading={isSubmitting}
             >
                 {initialMaster ? '更新する' : '登録する'}
             </Button>
@@ -158,37 +163,28 @@ export function RecurringMasterForm({
                 }}
                 title={initialMaster ? '定期取引を編集' : '定期取引を登録'}
                 footer={footer}
+                preventDismiss={isDirty}
             >
                 {/* 収入/支出切替 */}
                 <div className="grid grid-cols-2 gap-2">
-                    <motion.button
-                        whileTap={{ scale: 0.98 }}
-                        type="button"
-                        onClick={() => setValue('type', 'income')}
-                        className={cn(
-                            'flex items-center justify-center gap-2 py-4 rounded-xl font-medium transition-colors',
-                            watchedValues.type === 'income'
-                                ? 'bg-income text-white'
-                                : 'bg-surface-light text-gray-400'
-                        )}
-                    >
-                        <ArrowDownCircle className="w-5 h-5" />
-                        収入
-                    </motion.button>
-                    <motion.button
-                        whileTap={{ scale: 0.98 }}
-                        type="button"
-                        onClick={() => setValue('type', 'expense')}
-                        className={cn(
-                            'flex items-center justify-center gap-2 py-4 rounded-xl font-medium transition-colors',
-                            watchedValues.type === 'expense'
-                                ? 'bg-expense text-white'
-                                : 'bg-surface-light text-gray-400'
-                        )}
-                    >
-                        <ArrowUpCircle className="w-5 h-5" />
-                        支出
-                    </motion.button>
+                    {[
+                        { id: 'income', label: '収入', icon: ArrowDownCircle, activeClass: 'bg-income text-white' },
+                        { id: 'expense', label: '支出', icon: ArrowUpCircle, activeClass: 'bg-expense text-white' }
+                    ].map(({ id, label, icon: Icon, activeClass }) => (
+                        <motion.button
+                            key={id}
+                            whileTap={{ scale: 0.98 }}
+                            type="button"
+                            onClick={() => setValue('type', id as 'income' | 'expense')}
+                            className={cn(
+                                'flex items-center justify-center gap-2 py-4 rounded-xl font-medium transition-colors',
+                                watchedValues.type === id ? activeClass : 'bg-surface-light text-gray-400'
+                            )}
+                        >
+                            <Icon className="w-5 h-5" />
+                            {label}
+                        </motion.button>
+                    ))}
                 </div>
 
                 {/* 名称 */}

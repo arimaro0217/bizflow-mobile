@@ -12,7 +12,7 @@ import { ToggleSwitch, Skeleton, ConfirmDrawer } from '../components/ui';
 import { useAppStore } from '../stores/appStore';
 import { ProjectCreateWizard } from '../features/projects/components/ProjectCreateWizard';
 import { useTransactions, useClients, type CreateTransactionInput, type CreateClientInput, useHaptic, useProjects, useProjectOperations } from '../hooks';
-import type { Client, Transaction, ClientFormData, TransactionFormData, ProjectColor, Project } from '../types';
+import type { Client, Transaction, ClientFormData, ProjectColor, Project } from '../types';
 import RecurringSettings from './RecurringSettings';
 import SettingsPage from './SettingsPage';
 import ClientManagementPage from './ClientManagementPage';
@@ -100,7 +100,7 @@ export default function Dashboard() {
     const [editingClient, setEditingClient] = useState<Client | null>(null);
     const [editingProject, setEditingProject] = useState<Project | undefined>(undefined);
 
-    const handleFormSubmit = async (data: TransactionFormData) => {
+    const handleFormSubmit = async (data: Omit<Transaction, 'id' | 'uid' | 'createdAt' | 'updatedAt'>) => {
         try {
             const input: CreateTransactionInput = {
                 type: data.type,
@@ -109,39 +109,33 @@ export default function Dashboard() {
                 transactionDate: data.transactionDate ?? new Date(),
                 settlementDate: data.settlementDate ?? null,
                 isSettled: data.isSettled || false,
-                // Firestore は undefined をサポートしないため、undefined の場合は除外
                 ...(data.clientId && { clientId: data.clientId }),
                 ...(data.memo && { memo: data.memo }),
             };
 
-            const promise = editingTransaction
-                ? updateTransaction(editingTransaction.id, input)
-                : addTransaction(input);
+            if (editingTransaction) {
+                await updateTransaction(editingTransaction.id, input);
+            } else {
+                await addTransaction(input);
+            }
 
-            // 非同期でエラーハンドリング
-            promise.catch((error) => {
-                console.error('取引の保存に失敗:', error);
-                haptic('error');
-                toast.error('保存に失敗しました', {
-                    description: '変更が反映されませんでした',
-                    icon: <AlertCircle className="w-5 h-5" />,
-                });
-            });
-
-            // 即座に成功扱いとしてUIを閉じる
             haptic('success');
             toast.success(editingTransaction ? '取引を更新しました' : '取引を保存しました', {
                 description: '変更内容は即座に反映されます',
                 icon: <CheckCircle className="w-5 h-5" />,
             });
 
-            setTransactionClient(null); // Reset client selection
-            setEditingTransaction(null); // Reset editing state
-            setIsTransactionFormOpen(false); // Close form explicitly
+            // 成功時のみ親側での編集状態リセットを行う
+            setTransactionClient(null);
+            setEditingTransaction(null);
         } catch (error) {
-            // 同期的なエラー（入力構築時など）
             console.error('処理エラー:', error);
-            toast.error('エラーが発生しました');
+            haptic('error');
+            toast.error('保存に失敗しました', {
+                description: '変更が反映されませんでした',
+                icon: <AlertCircle className="w-5 h-5" />,
+            });
+            throw error; // UIを閉じないためにフォーム側へエラーを波及させる
         }
     };
 

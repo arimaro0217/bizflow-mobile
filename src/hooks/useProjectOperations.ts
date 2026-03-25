@@ -370,7 +370,8 @@ export function useProjectOperations(uid: string | undefined): UseProjectOperati
                     }
                 } catch (err) {
                     console.error('関連トランザクションの更新準備中にエラーが発生しました', err);
-                    // 案件更新自体は止めないが、ログは出す
+                    // 関連トランザクションの更新に関わる深刻なエラーの場合は呼び出し元に伝播させる
+                    throw new Error('関連トランザクションの更新に失敗しました。');
                 }
             }
 

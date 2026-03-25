@@ -6,6 +6,7 @@ import { Delete, Check, X } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useAppStore } from '../../stores/appStore';
 import { useVisualViewport } from '../../hooks/useVisualViewport';
+import { useHaptic } from '../../hooks';
 
 interface KeypadProps {
     onConfirm: (value: string) => void;
@@ -23,6 +24,7 @@ export function Keypad({ onConfirm, onCancel, initialValue = '' }: KeypadProps) 
     const [waitingForOperand, setWaitingForOperand] = useState(false);
 
     const viewport = useVisualViewport();
+    const { trigger: haptic } = useHaptic();
 
     // 開くたびに状態をリセット
     useEffect(() => {
@@ -49,18 +51,31 @@ export function Keypad({ onConfirm, onCancel, initialValue = '' }: KeypadProps) 
         }
     }, [isKeypadOpen]);
 
+    const MAX_DIGITS = 10;
+
     const handleNumberInput = useCallback((num: string) => {
+        haptic('light');
         if (waitingForOperand) {
             setDisplayValue(num);
             setWaitingForOperand(false);
         } else {
-            setDisplayValue(prev =>
-                prev === '0' ? num : prev + num
-            );
+            setDisplayValue(prev => {
+                const isZero = prev === '0';
+                // 既に最大桁数に達している場合は追加しない
+                if (!isZero && prev.length >= MAX_DIGITS) return prev;
+                // '00'ボタン等への対策としての桁数考慮
+                if (!isZero && prev.length + num.length > MAX_DIGITS) return prev;
+                
+                if (isZero) {
+                    return num === '00' ? '0' : num;
+                }
+                return prev + num;
+            });
         }
-    }, [waitingForOperand]);
+    }, [waitingForOperand, haptic]);
 
     const handleOperator = useCallback((op: Operator) => {
+        haptic('light');
         if (previousValue !== null && operator && !waitingForOperand) {
             // 計算実行
             const result = calculate(previousValue, displayValue, operator);
@@ -71,7 +86,7 @@ export function Keypad({ onConfirm, onCancel, initialValue = '' }: KeypadProps) 
         }
         setOperator(op);
         setWaitingForOperand(true);
-    }, [previousValue, displayValue, operator, waitingForOperand]);
+    }, [previousValue, displayValue, operator, waitingForOperand, haptic]);
 
     const calculate = (left: string, right: string, op: Operator): string => {
         const a = new Decimal(left);
@@ -93,20 +108,23 @@ export function Keypad({ onConfirm, onCancel, initialValue = '' }: KeypadProps) 
     };
 
     const handleClear = useCallback(() => {
+        haptic('medium');
         setDisplayValue('0');
         setPreviousValue(null);
         setOperator(null);
         setWaitingForOperand(false);
-    }, []);
+    }, [haptic]);
 
     const handleBackspace = useCallback(() => {
+        haptic('medium');
         setDisplayValue(prev => {
             if (prev.length === 1) return '0';
             return prev.slice(0, -1);
         });
-    }, []);
+    }, [haptic]);
 
     const handleConfirm = useCallback(() => {
+        haptic('medium');
         // 演算途中の場合は計算を完了
         if (previousValue !== null && operator) {
             const result = calculate(previousValue, displayValue, operator);
@@ -115,12 +133,13 @@ export function Keypad({ onConfirm, onCancel, initialValue = '' }: KeypadProps) 
             onConfirm(displayValue);
         }
         closeKeypad();
-    }, [displayValue, previousValue, operator, onConfirm, closeKeypad]);
+    }, [displayValue, previousValue, operator, onConfirm, closeKeypad, haptic]);
 
     const handleCancel = useCallback(() => {
+        haptic('medium');
         onCancel?.();
         closeKeypad();
-    }, [onCancel, closeKeypad]);
+    }, [onCancel, closeKeypad, haptic]);
 
     // キーボードイベントリスナー（PC/外付けキーボード対応）
     useEffect(() => {

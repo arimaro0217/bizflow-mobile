@@ -97,7 +97,7 @@ export function ProjectCreateWizard({
 
     const { openKeypad, closeKeypad } = useAppStore();
 
-    const { watch, setValue, register, handleSubmit, formState: { errors } } = form;
+    const { watch, setValue, register, handleSubmit, formState: { errors, isDirty } } = form;
 
     // 選択中のクライアント
     const [selectedClient, setSelectedClient] = useState<Client | null>(null);
@@ -208,6 +208,7 @@ export function ProjectCreateWizard({
                     }
                 }}
                 disabled={isSubmitting || !isStepValid(currentStep)}
+                isLoading={isLastStep && isSubmitting}
             >
                 {isLastStep ? (isSubmitting ? '保存中...' : (isEditMode ? '更新する' : '登録する')) : '次へ'}
                 {!isLastStep && <ChevronRight className="w-5 h-5" />}
@@ -225,6 +226,7 @@ export function ProjectCreateWizard({
                 }}
                 title={STEP_TITLES[currentStep]}
                 footer={footer}
+                preventDismiss={isDirty}
             >
                 <div className="relative overflow-hidden min-h-[400px]">
                     <AnimatePresence mode="wait" custom={slideDirection}>

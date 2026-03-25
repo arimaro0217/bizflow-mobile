@@ -16,14 +16,8 @@ export function getDisplayDate(
     transaction: Transaction,
     viewMode: ViewMode
 ): Date | null {
-    // プロジェクトモード：発生主義（取引日/納品日）として扱う
-    // ※ 案件の終了日（納品日）が transactionDate にマッピングされているため
-    if (viewMode === 'project') {
-        return transaction.transactionDate;
-    }
-
-    // 発生主義モード
-    if (viewMode === 'accrual') {
+    // 発生主義モード または プロジェクトモード (案件の納品日がトランザクションの発生日となるため)
+    if (viewMode === 'project' || viewMode === 'accrual') {
         return transaction.transactionDate;
     }
 
