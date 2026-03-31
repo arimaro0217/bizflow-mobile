@@ -29,8 +29,11 @@ export function FormDrawer({
     const { isKeypadOpen } = useAppStore();
     const viewport = useVisualViewport();
 
-    // ビューポート調整ロジック（Keypad表示時は0固定）
-    const contentStyle = (viewport && !isKeypadOpen) ? {
+    // ソフトウェアキーボードが開いているかどうかを高さの差分で判定（100px以上なら開いているとみなす）
+    const isSoftwareKeyboardOpen = viewport && (window.innerHeight - viewport.height > 100);
+
+    // ビューポート調整ロジック（ソフトウェアキーボード表示時のみ調整し、Keypad表示時や通常時は0とする）
+    const contentStyle = (viewport && isSoftwareKeyboardOpen && !isKeypadOpen) ? {
         bottom: `${Math.max(0, window.innerHeight - (viewport.height + viewport.offsetTop))}px`,
         maxHeight: `${viewport.height}px`,
     } : {
@@ -52,10 +55,10 @@ export function FormDrawer({
                     )}
                     style={contentStyle}
                 >
-                    <div className={cn(
-                        "bg-surface-dark rounded-t-3xl flex flex-col h-full",
-                        !viewport && `max-h-[${maxHeight}]`
-                    )}>
+                    <div 
+                        className="bg-surface-dark rounded-t-3xl flex flex-col h-full"
+                        style={{ maxHeight: viewport && isSoftwareKeyboardOpen ? undefined : maxHeight }}
+                    >
                         {/* ハンドル */}
                         <div className="flex justify-center py-4 cursor-grab active:cursor-grabbing group">
                             <Drawer.Handle className="w-12 h-1.5 bg-gray-600 group-hover:bg-gray-500 rounded-full transition-colors" />

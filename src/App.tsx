@@ -34,7 +34,7 @@ function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Suspense>
-      <Toaster richColors position="bottom-center" />
+      <Toaster richColors position="top-center" duration={3000} closeButton />
     </BrowserRouter>
   );
 }

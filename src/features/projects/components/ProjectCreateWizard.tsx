@@ -227,6 +227,8 @@ export function ProjectCreateWizard({
                 title={STEP_TITLES[currentStep]}
                 footer={footer}
                 preventDismiss={isDirty}
+                maxHeight="96dvh"
+                className="h-[96dvh]"
             >
                 <div className="relative overflow-hidden min-h-[400px]">
                     <AnimatePresence mode="wait" custom={slideDirection}>
